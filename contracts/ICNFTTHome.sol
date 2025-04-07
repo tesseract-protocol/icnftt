@@ -100,7 +100,6 @@ contract ICNFTTHome is IICNFTTHome, ERC721URIStorage, Ownable {
         uint256 batchSize
     ) internal {
         require(!_lockedTokens[tokenId], "Token is locked");
-        super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
     
     // Helper function to check if token exists
