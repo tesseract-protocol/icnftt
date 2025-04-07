@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+interface IICNFTTRemote {
+    // Receives message from Home to mint a token
+    function receiveToken(
+        uint256 tokenId,
+        address recipient
+    ) external;
+    
+    // Burns the token on Remote and sends message to unlock on Home
+    function returnToken(
+        uint256 tokenId, 
+        address recipient
+    ) external;
+    
+    // Returns the Home chain ID
+    function getHomeChainId() external view returns (uint32);
+    
+    // Returns the Home token address
+    function getHomeTokenAddress() external view returns (address);
+    
+    event TokenMinted(uint256 indexed tokenId, address indexed recipient);
+    event TokenBurned(uint256 indexed tokenId, address indexed recipient);
+    event HomeChainRegistered(uint32 indexed chainId, address indexed homeAddress);
+} 

@@ -1,0 +1,27 @@
+# Foundry
+cache/
+out/
+broadcast/
+
+# Dependencies
+node_modules/
+lib/
+
+# Hardhat files
+artifacts/
+cache_hardhat/
+coverage/
+coverage.json
+
+# Env files
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+.DS_Store
+*.swp
+*.swo
