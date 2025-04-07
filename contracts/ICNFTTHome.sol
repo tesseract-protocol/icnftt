@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.25;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -93,13 +93,14 @@ contract ICNFTTHome is IICNFTTHome, ERC721URIStorage, Ownable {
     }
     
     // Override transferFrom and safeTransferFrom to prevent transfers of locked tokens
-    function _update(
+    function _beforeTokenTransfer(
+        address from,
         address to,
         uint256 tokenId,
-        address auth
-    ) internal virtual override returns (address) {
+        uint256 batchSize
+    ) internal {
         require(!_lockedTokens[tokenId], "Token is locked");
-        return super._update(to, tokenId, auth);
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
     
     // Helper function to check if token exists
