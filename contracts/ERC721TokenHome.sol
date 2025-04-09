@@ -5,7 +5,7 @@ import {
     ERC721URIStorage,
     ERC721
 } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import {INFTHome} from "./interfaces/INFTHome.sol";
+import {IERC721TokenHome} from "./interfaces/IERC721TokenHome.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {
@@ -20,7 +20,7 @@ import {IWarpMessenger} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 
 contract ERC721TokenHome is
-    INFTHome,
+    IERC721TokenHome,
     INFTTransferrer,
     ERC721URIStorage,
     TeleporterRegistryOwnableApp

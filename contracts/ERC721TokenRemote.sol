@@ -5,11 +5,11 @@ import {
     ERC721URIStorage,
     ERC721
 } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import {INFTRemote} from "./interfaces/INFTRemote.sol";
+import {IERC721TokenRemote} from "./interfaces/IERC721TokenRemote.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 
-contract ERC721TokenRemote is INFTRemote, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenRemote is IERC721TokenRemote, ERC721URIStorage, TeleporterRegistryOwnableApp {
     // Home chain ID
     bytes32 public immutable homeChainId;
 

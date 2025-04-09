@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface INFTHome {
+interface IERC721TokenHome {
     // View function to check if token is locked
     function isTokenLocked(
         uint256 tokenId

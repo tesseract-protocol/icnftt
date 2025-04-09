@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-interface INFTRemote {
+interface IERC721TokenRemote {
     // Receives message from Home to mint a token
     function receiveToken(uint256 tokenId, address recipient) external;
 
