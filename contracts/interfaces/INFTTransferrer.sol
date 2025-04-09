@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 enum TransferrerMessageType {
     REGISTER_REMOTE,
+    UPDATE_REMOTE_BASE_URI,
     SINGLE_HOP_SEND,
     SINGLE_HOP_CALL
 }
@@ -15,6 +16,10 @@ struct TransferrerMessage {
 struct TransferTokenMessage {
     address recipient;
     uint256 tokenId;
+}
+
+struct UpdateRemoteBaseURIMessage {
+    string baseURI;
 }
 
 struct SendNFTInput {

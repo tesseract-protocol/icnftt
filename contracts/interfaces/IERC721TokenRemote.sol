@@ -2,12 +2,6 @@
 pragma solidity 0.8.25;
 
 interface IERC721TokenRemote {
-    // Receives message from Home to mint a token
-    function receiveToken(uint256 tokenId, address recipient) external;
-
-    // Burns the token on Remote and sends message to unlock on Home
-    function returnToken(uint256 tokenId, address recipient) external;
-
     // Returns the Home chain ID
     function getHomeChainId() external view returns (bytes32);
 
