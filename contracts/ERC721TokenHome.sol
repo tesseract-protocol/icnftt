@@ -19,7 +19,12 @@ import {
 import {IWarpMessenger} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 
-contract NFTHome is INFTHome, INFTTransferrer, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenHome is
+    INFTHome,
+    INFTTransferrer,
+    ERC721URIStorage,
+    TeleporterRegistryOwnableApp
+{
     bytes32 public immutable blockchainID;
 
     // Mapping from tokenId to lock status

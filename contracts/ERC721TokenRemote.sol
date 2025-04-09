@@ -9,7 +9,7 @@ import {INFTRemote} from "./interfaces/INFTRemote.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 
-contract NFTRemote is INFTRemote, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenRemote is INFTRemote, ERC721URIStorage, TeleporterRegistryOwnableApp {
     // Home chain ID
     bytes32 public immutable homeChainId;
 
