@@ -12,7 +12,8 @@ import {
     SendNFTInput,
     TokenSent,
     INFTTransferrer,
-    UpdateRemoteBaseURIMessage
+    UpdateRemoteBaseURIMessage,
+    UpdateRemoteTokenURIMessage
 } from "./interfaces/INFTTransferrer.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
@@ -61,12 +62,16 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
         return _isRegistered;
     }
 
-    function _baseURI() internal view override returns (string memory) {
-        return _baseURIStorage;
-    }
-
     function send(SendNFTInput calldata input, uint256 tokenId) external override {
-        _validateSend(input, tokenId);
+        require(input.destinationBlockchainID == _homeChainId, "ERC721TokenRemote: can only send to home chain");
+        require(
+            input.destinationTokenTransferrerAddress == _homeContractAddress,
+            "ERC721TokenRemote: can only send to home contract"
+        );
+        require(_isRegistered, "ERC721TokenRemote: not registered");
+
+        address tokenOwner = ownerOf(tokenId);
+        transferFrom(tokenOwner, address(this), tokenId);
 
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
@@ -88,11 +93,11 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
 
         _burn(tokenId);
 
-        emit TokenBurned(tokenId, input.recipient);
+        emit TokenBurned(tokenId, tokenOwner);
         emit TokenSent(messageID, msg.sender, tokenId);
     }
 
-    function receiveToken(uint256 tokenId, address recipient) internal {
+    function _receiveToken(uint256 tokenId, address recipient) internal {
         _mint(recipient, tokenId);
         emit TokenMinted(tokenId, recipient);
     }
@@ -115,11 +120,17 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
             TransferTokenMessage memory transferTokenMessage =
                 abi.decode(transferrerMessage.payload, (TransferTokenMessage));
 
-            receiveToken(transferTokenMessage.tokenId, transferTokenMessage.recipient);
+            _receiveToken(transferTokenMessage.tokenId, transferTokenMessage.recipient);
         } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_REMOTE_BASE_URI) {
             UpdateRemoteBaseURIMessage memory updateRemoteBaseURIMessage =
                 abi.decode(transferrerMessage.payload, (UpdateRemoteBaseURIMessage));
             _baseURIStorage = updateRemoteBaseURIMessage.baseURI;
+            emit RemoteBaseURIUpdated(_baseURIStorage);
+        } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_REMOTE_TOKEN_URI) {
+            UpdateRemoteTokenURIMessage memory updateRemoteTokenURIMessage =
+                abi.decode(transferrerMessage.payload, (UpdateRemoteTokenURIMessage));
+            _setTokenURI(updateRemoteTokenURIMessage.tokenId, updateRemoteTokenURIMessage.uri);
+            emit RemoteTokenURIUpdated(updateRemoteTokenURIMessage.tokenId, updateRemoteTokenURIMessage.uri);
         }
     }
 
@@ -152,29 +163,7 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
         return SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
     }
 
-    function _validateSend(SendNFTInput calldata input, uint256 tokenId) internal view {
-        require(_exists(tokenId), "ERC721TokenRemote: token does not exist");
-        require(
-            ownerOf(tokenId) == msg.sender || isApprovedForAll(ownerOf(tokenId), msg.sender)
-                || getApproved(tokenId) == msg.sender,
-            "ERC721TokenRemote: not owner or approved"
-        );
-        require(input.destinationBlockchainID == _homeChainId, "ERC721TokenRemote: can only send to home chain");
-        require(
-            input.destinationTokenTransferrerAddress == _homeContractAddress,
-            "ERC721TokenRemote: can only send to home contract"
-        );
-        require(_isRegistered, "ERC721TokenRemote: not registered");
-    }
-
-    // Helper function to check if token exists
-    function _exists(
-        uint256 tokenId
-    ) internal view returns (bool) {
-        try this.ownerOf(tokenId) returns (address) {
-            return true;
-        } catch {
-            return false;
-        }
+    function _baseURI() internal view override returns (string memory) {
+        return _baseURIStorage;
     }
 }

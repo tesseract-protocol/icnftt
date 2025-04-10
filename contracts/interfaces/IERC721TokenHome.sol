@@ -6,5 +6,22 @@ interface IERC721TokenHome {
 
     function getBlockchainID() external view returns (bytes32);
 
-    event RemoteChainRegistered(bytes32 indexed blockchainID, address indexed remoteAddress);
+    event BaseURIUpdated(string newBaseURI);
+
+    event RemoteChainRegistered(bytes32 indexed blockchainID, address indexed remote);
+
+    event UpdateRemoteBaseURI(
+        bytes32 indexed teleporterMessageID,
+        bytes32 indexed destinationBlockchainID,
+        address indexed remote,
+        string baseURI
+    );
+
+    event UpdateRemoteTokenURI(
+        bytes32 indexed teleporterMessageID,
+        bytes32 indexed destinationBlockchainID,
+        address indexed remote,
+        uint256 tokenId,
+        string uri
+    );
 }

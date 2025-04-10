@@ -12,19 +12,19 @@ import {
     TransferTokenMessage,
     SendNFTInput,
     TokenSent,
-    INFTTransferrer
+    INFTTransferrer,
+    UpdateRemoteBaseURIMessage,
+    UpdateRemoteTokenURIMessage
 } from "./interfaces/INFTTransferrer.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 
 contract ERC721TokenHome is IERC721TokenHome, INFTTransferrer, ERC721URIStorage, TeleporterRegistryOwnableApp {
     bytes32 private immutable _blockchainID;
 
-    // Mapping from chainId to remote contract address
     mapping(bytes32 => address) private _remoteContracts;
 
     string private _baseURIStorage;
 
-    // Array of registered chain IDs
     bytes32[] private _registeredChains;
 
     constructor(
@@ -52,44 +52,20 @@ contract ERC721TokenHome is IERC721TokenHome, INFTTransferrer, ERC721URIStorage,
 
     function updateBaseURI(
         string memory newBaseURI
-    ) external onlyOwner {
+    ) external virtual onlyOwner {
         _baseURIStorage = newBaseURI;
+        emit BaseURIUpdated(newBaseURI);
     }
 
-    function updateRemoteBaseURI(
-        SendNFTInput calldata input
-    ) external onlyOwner {
-        _validateSendNFTInput(input);
-        TransferrerMessage memory message =
-            TransferrerMessage({messageType: TransferrerMessageType.UPDATE_REMOTE_BASE_URI, payload: abi.encode(input)});
-        bytes32 messageID = _sendTeleporterMessage(
-            TeleporterMessageInput({
-                destinationBlockchainID: input.destinationBlockchainID,
-                destinationAddress: input.destinationTokenTransferrerAddress,
-                feeInfo: TeleporterFeeInfo({feeTokenAddress: input.primaryFeeTokenAddress, amount: input.primaryFee}),
-                requiredGasLimit: input.requiredGasLimit,
-                allowedRelayerAddresses: new address[](0),
-                message: abi.encode(message)
-            })
-        );
-    }
-
-    function mint(address to, uint256 tokenId, string memory uri) external onlyOwner {
-        _mint(to, tokenId);
-        _setTokenURI(tokenId, uri);
+    function updateTokenURI(uint256 tokenId, string memory newURI) external virtual onlyOwner {
+        _setTokenURI(tokenId, newURI);
     }
 
     function send(SendNFTInput calldata input, uint256 tokenId) external override {
         _validateSendNFTInput(input);
 
-        require(_exists(tokenId), "ERC721TokenHome: token does not exist");
-        require(
-            ownerOf(tokenId) == msg.sender || isApprovedForAll(ownerOf(tokenId), msg.sender)
-                || getApproved(tokenId) == msg.sender,
-            "ERC721TokenHome: not owner or approved"
-        );
-
-        _transfer(msg.sender, address(this), tokenId);
+        address tokenOwner = ownerOf(tokenId);
+        transferFrom(tokenOwner, address(this), tokenId);
 
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
@@ -107,6 +83,50 @@ contract ERC721TokenHome is IERC721TokenHome, INFTTransferrer, ERC721URIStorage,
         );
 
         emit TokenSent(messageID, msg.sender, tokenId);
+    }
+
+    function updateRemoteBaseURI(
+        SendNFTInput calldata input
+    ) external onlyOwner {
+        _validateSendNFTInput(input);
+        TransferrerMessage memory message = TransferrerMessage({
+            messageType: TransferrerMessageType.UPDATE_REMOTE_BASE_URI,
+            payload: abi.encode(UpdateRemoteBaseURIMessage({baseURI: _baseURIStorage}))
+        });
+        bytes32 messageID = _sendTeleporterMessage(
+            TeleporterMessageInput({
+                destinationBlockchainID: input.destinationBlockchainID,
+                destinationAddress: input.destinationTokenTransferrerAddress,
+                feeInfo: TeleporterFeeInfo({feeTokenAddress: input.primaryFeeTokenAddress, amount: input.primaryFee}),
+                requiredGasLimit: input.requiredGasLimit,
+                allowedRelayerAddresses: new address[](0),
+                message: abi.encode(message)
+            })
+        );
+        emit UpdateRemoteBaseURI(
+            messageID, input.destinationBlockchainID, input.destinationTokenTransferrerAddress, _baseURIStorage
+        );
+    }
+
+    function updateRemoteTokenURI(SendNFTInput calldata input, uint256 tokenId, string memory uri) external onlyOwner {
+        _validateSendNFTInput(input);
+        TransferrerMessage memory message = TransferrerMessage({
+            messageType: TransferrerMessageType.UPDATE_REMOTE_TOKEN_URI,
+            payload: abi.encode(UpdateRemoteTokenURIMessage({tokenId: tokenId, uri: uri}))
+        });
+        bytes32 messageID = _sendTeleporterMessage(
+            TeleporterMessageInput({
+                destinationBlockchainID: input.destinationBlockchainID,
+                destinationAddress: input.destinationTokenTransferrerAddress,
+                feeInfo: TeleporterFeeInfo({feeTokenAddress: input.primaryFeeTokenAddress, amount: input.primaryFee}),
+                requiredGasLimit: input.requiredGasLimit,
+                allowedRelayerAddresses: new address[](0),
+                message: abi.encode(message)
+            })
+        );
+        emit UpdateRemoteTokenURI(
+            messageID, input.destinationBlockchainID, input.destinationTokenTransferrerAddress, tokenId, uri
+        );
     }
 
     function _validateSendNFTInput(
@@ -150,16 +170,6 @@ contract ERC721TokenHome is IERC721TokenHome, INFTTransferrer, ERC721URIStorage,
             TransferTokenMessage memory transferTokenMessage =
                 abi.decode(transferrerMessage.payload, (TransferTokenMessage));
             _safeTransfer(address(this), transferTokenMessage.recipient, transferTokenMessage.tokenId, "");
-        }
-    }
-
-    function _exists(
-        uint256 tokenId
-    ) internal view returns (bool) {
-        try this.ownerOf(tokenId) returns (address) {
-            return true;
-        } catch {
-            return false;
         }
     }
 }
