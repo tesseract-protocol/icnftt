@@ -4,7 +4,7 @@ pragma solidity 0.8.25;
 import "forge-std/Test.sol";
 import "../contracts/ERC721TokenHome.sol";
 import "../contracts/ERC721TokenRemote.sol";
-import {SendNFTInput} from "../contracts/interfaces/INFTTransferrer.sol";
+import {SendTokenInput} from "../contracts/interfaces/IERC721Transferrer.sol";
 import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger} from "./Mocks.sol";
 
 contract ERC721TokenHomePublicMint is ERC721TokenHome {
@@ -135,7 +135,7 @@ contract ICNFTT_Test is Test {
         // User sends token to remote chain
         vm.prank(user1);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user1,
@@ -171,7 +171,7 @@ contract ICNFTT_Test is Test {
         // User sends token to remote chain
         vm.prank(user1);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user1,
@@ -188,7 +188,7 @@ contract ICNFTT_Test is Test {
         // Now user sends token back from remote to home
         vm.prank(user1);
         remoteToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: HOME_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(homeToken),
                 recipient: user1,
@@ -228,7 +228,7 @@ contract ICNFTT_Test is Test {
         // Operator sends token to remote chain on behalf of user1
         vm.prank(operator);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user1, // Still sending to user1
@@ -265,7 +265,7 @@ contract ICNFTT_Test is Test {
         // Operator sends first token to remote chain
         vm.prank(operator);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user1,
@@ -279,7 +279,7 @@ contract ICNFTT_Test is Test {
         // Operator sends second token to remote chain
         vm.prank(operator);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user2, // Sending to different recipient
@@ -310,7 +310,7 @@ contract ICNFTT_Test is Test {
         // User1 sends token to user2 on remote chain
         vm.prank(user1);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user2, // Different recipient
@@ -340,7 +340,7 @@ contract ICNFTT_Test is Test {
         vm.expectRevert("ERC721TokenHome: destination chain not registered");
         vm.prank(user1);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user1,
@@ -361,7 +361,7 @@ contract ICNFTT_Test is Test {
         // Owner updates baseURI
         vm.prank(owner);
         string memory newBaseURI = "https://updated.nft/";
-        homeToken.updateBaseURI(newBaseURI);
+        homeToken.updateBaseURI(newBaseURI, false, TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
 
         // Verify the token URI reflects the updated baseURI
         string memory expectedURI = string.concat(newBaseURI, "token1.json");
@@ -372,7 +372,9 @@ contract ICNFTT_Test is Test {
     function testNonOwnerCannotUpdateBaseURI() public {
         vm.expectRevert(); // Should revert with onlyOwner error
         vm.prank(user1);
-        homeToken.updateBaseURI("https://hacker.nft/");
+        homeToken.updateBaseURI(
+            "https://hacker.nft/", false, TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0})
+        );
     }
 
     // Test transferring to recipient that doesn't exist on remote
@@ -386,7 +388,7 @@ contract ICNFTT_Test is Test {
         // User1 sends token to user2 on remote chain
         vm.prank(user1);
         homeToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: REMOTE_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(remoteToken),
                 recipient: user2,
@@ -403,7 +405,7 @@ contract ICNFTT_Test is Test {
         // User2 sends token back to a new recipient on home
         vm.prank(user2);
         remoteToken.send(
-            SendNFTInput({
+            SendTokenInput({
                 destinationBlockchainID: HOME_CHAIN_ID,
                 destinationTokenTransferrerAddress: address(homeToken),
                 recipient: operator, // New recipient who hasn't interacted before

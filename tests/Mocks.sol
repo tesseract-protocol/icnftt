@@ -7,7 +7,7 @@ import {
     TeleporterMessage,
     TeleporterMessageReceipt
 } from "@teleporter/ITeleporterMessenger.sol";
-import {TransferrerMessage, TransferrerMessageType} from "../contracts/interfaces/INFTTransferrer.sol";
+import {TransferrerMessage, TransferrerMessageType} from "../contracts/interfaces/IERC721Transferrer.sol";
 
 // Mock of IWarpMessenger to return chain IDs
 contract MockWarpMessenger {

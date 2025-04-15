@@ -1,25 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ERC721URIStorage, ERC721} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import {ERC721URIStorage, ERC721} from "./ERC721URIStorage.sol";
 import {IERC721TokenRemote} from "./interfaces/IERC721TokenRemote.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {
     TransferrerMessage,
     TransferrerMessageType,
-    TransferTokenMessage,
-    SendNFTInput,
+    SendTokenMessage,
+    SendTokenInput,
+    SendAndCallInput,
     TokenSent,
-    INFTTransferrer,
+    TokenAndCallSent,
+    IERC721Transferrer,
     UpdateRemoteBaseURIMessage,
-    UpdateRemoteTokenURIMessage
-} from "./interfaces/INFTTransferrer.sol";
+    UpdateRemoteTokenURIMessage,
+    SendAndCallMessage,
+    CallSucceeded,
+    CallFailed
+} from "./interfaces/IERC721Transferrer.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {CallUtils} from "@utilities/CallUtils.sol";
+import {IERC721SendAndCallReceiver} from "./interfaces/IERC721SendAndCallReceiver.sol";
 
-contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIStorage, TeleporterRegistryOwnableApp {
     bytes32 internal immutable _homeChainId;
     address internal immutable _homeContractAddress;
     bytes32 internal immutable _blockchainID;
@@ -62,7 +69,7 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
         return _isRegistered;
     }
 
-    function send(SendNFTInput calldata input, uint256 tokenId) external override {
+    function send(SendTokenInput calldata input, uint256 tokenId) external override {
         require(input.destinationBlockchainID == _homeChainId, "ERC721TokenRemote: can only send to home chain");
         require(
             input.destinationTokenTransferrerAddress == _homeContractAddress,
@@ -75,7 +82,9 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
 
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
-            payload: abi.encode(TransferTokenMessage({recipient: input.recipient, tokenId: tokenId}))
+            payload: abi.encode(
+                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, tokenURI: _tokenURIs[tokenId]})
+            )
         });
 
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
@@ -97,9 +106,103 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
         emit TokenSent(messageID, msg.sender, tokenId);
     }
 
-    function _receiveToken(uint256 tokenId, address recipient) internal {
+    /**
+     * @notice Sends a token to a contract on the home chain and calls a function on it
+     * @param input The parameters for the cross-chain call
+     * @param tokenId The ID of the token to send
+     */
+    function sendAndCall(SendAndCallInput calldata input, uint256 tokenId) external override {
+        require(input.destinationBlockchainID == _homeChainId, "ERC721TokenRemote: can only send to home chain");
+        require(
+            input.destinationTokenTransferrerAddress == _homeContractAddress,
+            "ERC721TokenRemote: can only send to home contract"
+        );
+        require(_isRegistered, "ERC721TokenRemote: not registered");
+        require(input.recipientContract != address(0), "ERC721TokenRemote: zero recipient contract address");
+        require(input.fallbackRecipient != address(0), "ERC721TokenRemote: zero fallback recipient address");
+        require(input.requiredGasLimit > 0, "ERC721TokenRemote: zero required gas limit");
+        require(input.recipientGasLimit > 0, "ERC721TokenRemote: zero recipient gas limit");
+        require(input.recipientGasLimit < input.requiredGasLimit, "ERC721TokenRemote: recipient gas limit too high");
+
+        address tokenOwner = ownerOf(tokenId);
+        transferFrom(tokenOwner, address(this), tokenId);
+
+        SendAndCallMessage memory callMessage = SendAndCallMessage({
+            recipientContract: input.recipientContract,
+            tokenId: tokenId,
+            tokenURI: _tokenURIs[tokenId],
+            originSenderAddress: msg.sender,
+            recipientPayload: input.recipientPayload,
+            recipientGasLimit: input.recipientGasLimit,
+            fallbackRecipient: input.fallbackRecipient
+        });
+
+        TransferrerMessage memory message =
+            TransferrerMessage({messageType: TransferrerMessageType.SINGLE_HOP_CALL, payload: abi.encode(callMessage)});
+
+        _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
+
+        bytes32 messageID = _sendTeleporterMessage(
+            TeleporterMessageInput({
+                destinationBlockchainID: input.destinationBlockchainID,
+                destinationAddress: input.destinationTokenTransferrerAddress,
+                feeInfo: TeleporterFeeInfo({feeTokenAddress: input.primaryFeeTokenAddress, amount: input.primaryFee}),
+                requiredGasLimit: input.requiredGasLimit,
+                allowedRelayerAddresses: new address[](0),
+                message: abi.encode(message)
+            })
+        );
+
+        _burn(tokenId);
+
+        emit TokenBurned(tokenId, tokenOwner);
+        emit TokenAndCallSent(messageID, msg.sender, tokenId);
+    }
+
+    function _receiveToken(uint256 tokenId, address recipient, string memory tokenURI) internal {
         _mint(recipient, tokenId);
+        _setTokenURI(tokenId, tokenURI);
         emit TokenMinted(tokenId, recipient);
+    }
+
+    /**
+     * @dev Processes a send and call message by minting the NFT and calling the recipient contract.
+     * This is the ERC721 version of the send and call mechanism from ERC20TokenRemoteUpgradeable.
+     * @param message The send and call message including recipient calldata
+     * @param tokenId The token ID to be sent to the recipient
+     */
+    function _handleSendAndCall(SendAndCallMessage memory message, uint256 tokenId) internal {
+        _mint(address(this), tokenId);
+        _setTokenURI(tokenId, message.tokenURI);
+
+        approve(message.recipientContract, tokenId);
+
+        bytes memory payload = abi.encodeCall(
+            IERC721SendAndCallReceiver.receiveToken,
+            (
+                _homeChainId,
+                _homeContractAddress,
+                message.originSenderAddress,
+                address(this),
+                tokenId,
+                message.recipientPayload
+            )
+        );
+
+        bool success = CallUtils._callWithExactGas(message.recipientGasLimit, message.recipientContract, payload);
+
+        if (success) {
+            emit CallSucceeded(message.recipientContract, tokenId);
+
+            if (ownerOf(tokenId) == address(this)) {
+                approve(address(0), tokenId);
+                _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
+            }
+        } else {
+            emit CallFailed(message.recipientContract, tokenId);
+            approve(address(0), tokenId);
+            _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
+        }
     }
 
     function _receiveTeleporterMessage(
@@ -117,10 +220,11 @@ contract ERC721TokenRemote is IERC721TokenRemote, INFTTransferrer, ERC721URIStor
         }
 
         if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
-            TransferTokenMessage memory transferTokenMessage =
-                abi.decode(transferrerMessage.payload, (TransferTokenMessage));
-
-            _receiveToken(transferTokenMessage.tokenId, transferTokenMessage.recipient);
+            SendTokenMessage memory sendTokenMessage = abi.decode(transferrerMessage.payload, (SendTokenMessage));
+            _receiveToken(sendTokenMessage.tokenId, sendTokenMessage.recipient, sendTokenMessage.tokenURI);
+        } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
+            SendAndCallMessage memory callMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
+            _handleSendAndCall(callMessage, callMessage.tokenId);
         } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_REMOTE_BASE_URI) {
             UpdateRemoteBaseURIMessage memory updateRemoteBaseURIMessage =
                 abi.decode(transferrerMessage.payload, (UpdateRemoteBaseURIMessage));
