@@ -27,6 +27,7 @@ If you are already familiar with ICTT, ICNFTT has some key similarities and diff
 ### Key Differences:
 
 - Support for NFTs :)
+- Only hops to/from Home/Remotes are supported; no support for multi-hop as the nth hop has no payment mechanism for the relayer
 - ICTT effectively has autonomous, independent state between L1s.
   - The default Remote ERC20 token can function completely without their canonical Home token counterparts.
 - ICNFTT may need a mixture of synced and unsynced state. Remote NFTs may need to check canonical edition for data, including for permissioning.
