@@ -3,8 +3,6 @@ pragma solidity 0.8.25;
 
 import {ERC721URIStorage, ERC721} from "./ERC721URIStorage.sol";
 import {IERC721TokenRemote} from "./interfaces/IERC721TokenRemote.sol";
-import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
-import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {
     TransferrerMessage,
     TransferrerMessageType,
@@ -13,20 +11,21 @@ import {
     SendAndCallInput,
     TokenSent,
     TokenAndCallSent,
-    IERC721Transferrer,
     UpdateRemoteBaseURIMessage,
     UpdateRemoteTokenURIMessage,
     SendAndCallMessage,
     CallSucceeded,
     CallFailed
 } from "./interfaces/IERC721Transferrer.sol";
+import {IERC721SendAndCallReceiver} from "./interfaces/IERC721SendAndCallReceiver.sol";
+import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
+import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
-import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
-import {IERC721SendAndCallReceiver} from "./interfaces/IERC721SendAndCallReceiver.sol";
+import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 
-contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenRemote is IERC721TokenRemote, ERC721URIStorage, TeleporterRegistryOwnableApp {
     bytes32 internal immutable _homeChainId;
     address internal immutable _homeContractAddress;
     bytes32 internal immutable _blockchainID;
@@ -61,11 +60,11 @@ contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIS
         return _homeContractAddress;
     }
 
-    function getBlockchainID() external view returns (bytes32) {
+    function getBlockchainID() external view override returns (bytes32) {
         return _blockchainID;
     }
 
-    function getIsRegistered() external view returns (bool) {
+    function getIsRegistered() external view override returns (bool) {
         return _isRegistered;
     }
 
@@ -159,12 +158,6 @@ contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIS
         emit TokenAndCallSent(messageID, msg.sender, tokenId);
     }
 
-    function _receiveToken(uint256 tokenId, address recipient, string memory tokenURI) internal {
-        _mint(recipient, tokenId);
-        _setTokenURI(tokenId, tokenURI);
-        emit TokenMinted(tokenId, recipient);
-    }
-
     /**
      * @dev Processes a send and call message by minting the NFT and calling the recipient contract.
      * This is the ERC721 version of the send and call mechanism from ERC20TokenRemoteUpgradeable.
@@ -224,11 +217,17 @@ contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIS
         );
     }
 
-    function _handleFees(address feeTokenAddress, uint256 feeAmount) internal returns (uint256) {
+    function _receiveToken(uint256 tokenId, address recipient, string memory tokenURI) internal {
+        _mint(recipient, tokenId);
+        _setTokenURI(tokenId, tokenURI);
+        emit TokenMinted(tokenId, recipient);
+    }
+
+    function _handleFees(address feeTokenAddress, uint256 feeAmount) internal {
         if (feeAmount == 0) {
-            return 0;
+            return;
         }
-        return SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
+        SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
     }
 
     function _baseURI() internal view override returns (string memory) {

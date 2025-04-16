@@ -2,10 +2,8 @@
 pragma solidity 0.8.25;
 
 import {ERC721URIStorage, ERC721} from "./ERC721URIStorage.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721TokenHome, UpdateURIInput} from "./interfaces/IERC721TokenHome.sol";
-import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
-import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
+import {IERC721SendAndCallReceiver} from "./interfaces/IERC721SendAndCallReceiver.sol";
 import {
     TransferrerMessage,
     TransferrerMessageType,
@@ -14,18 +12,20 @@ import {
     SendAndCallInput,
     TokenSent,
     TokenAndCallSent,
-    IERC721Transferrer,
     UpdateRemoteBaseURIMessage,
     UpdateRemoteTokenURIMessage,
     SendAndCallMessage,
     CallSucceeded,
     CallFailed
 } from "./interfaces/IERC721Transferrer.sol";
-import {IERC721SendAndCallReceiver} from "./interfaces/IERC721SendAndCallReceiver.sol";
+import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
+import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
+import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegistryOwnableApp {
     bytes32 private immutable _blockchainID;
 
     uint256 public constant UPDATE_TOKEN_URI_GAS_LIMIT = 120000;
@@ -49,52 +49,16 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
         _baseURIStorage = baseURI;
     }
 
-    function _baseURI() internal view override returns (string memory) {
-        return _baseURIStorage;
-    }
-
     function getRegisteredChains() external view override returns (bytes32[] memory) {
         return _registeredChains;
     }
 
-    function getBlockchainID() external view override returns (bytes32) {
-        return _blockchainID;
-    }
-
-    function getRegisteredChainsLength() external view returns (uint256) {
+    function getRegisteredChainsLength() external view override returns (uint256) {
         return _registeredChains.length;
     }
 
-    function updateBaseURI(
-        string memory newBaseURI,
-        bool updateRemotes,
-        TeleporterFeeInfo memory feeInfo
-    ) external virtual onlyOwner {
-        _baseURIStorage = newBaseURI;
-        emit BaseURIUpdated(newBaseURI);
-        if (updateRemotes) {
-            for (uint256 i = 0; i < _registeredChains.length; i++) {
-                bytes32 remoteBlockchainID = _registeredChains[i];
-                address remoteContract = _remoteContracts[remoteBlockchainID];
-                _updateRemoteBaseURI(remoteBlockchainID, remoteContract, newBaseURI, feeInfo);
-            }
-        }
-    }
-
-    function updateTokenURI(
-        uint256 tokenId,
-        string memory newURI,
-        bool updateRemote,
-        TeleporterFeeInfo memory feeInfo
-    ) external virtual onlyOwner {
-        _setTokenURI(tokenId, newURI);
-        if (updateRemote) {
-            bytes32 remoteBlockchainID = _tokenRemoteContracts[tokenId];
-            if (remoteBlockchainID != bytes32(0)) {
-                address remoteContract = _remoteContracts[remoteBlockchainID];
-                _updateRemoteTokenURI(remoteBlockchainID, remoteContract, tokenId, newURI, feeInfo);
-            }
-        }
+    function getBlockchainID() external view override returns (bytes32) {
+        return _blockchainID;
     }
 
     function send(SendTokenInput calldata input, uint256 tokenId) external override {
@@ -103,6 +67,7 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
         address tokenOwner = ownerOf(tokenId);
         transferFrom(tokenOwner, address(this), tokenId);
 
+        _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
             payload: abi.encode(
@@ -141,9 +106,9 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
             fallbackRecipient: input.fallbackRecipient
         });
 
+        _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
         TransferrerMessage memory transferrerMessage =
             TransferrerMessage({messageType: TransferrerMessageType.SINGLE_HOP_CALL, payload: abi.encode(message)});
-
         bytes32 messageID = _sendTeleporterMessage(
             TeleporterMessageInput({
                 destinationBlockchainID: input.destinationBlockchainID,
@@ -160,12 +125,30 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
         emit TokenAndCallSent(messageID, msg.sender, tokenId);
     }
 
+    function updateBaseURI(
+        string memory newBaseURI,
+        bool updateRemotes,
+        TeleporterFeeInfo memory feeInfo
+    ) external virtual onlyOwner {
+        _baseURIStorage = newBaseURI;
+        emit BaseURIUpdated(newBaseURI);
+        if (updateRemotes) {
+            _handleFees(feeInfo.feeTokenAddress, feeInfo.amount * _registeredChains.length);
+            for (uint256 i = 0; i < _registeredChains.length; i++) {
+                bytes32 remoteBlockchainID = _registeredChains[i];
+                address remoteContract = _remoteContracts[remoteBlockchainID];
+                _updateRemoteBaseURI(remoteBlockchainID, remoteContract, newBaseURI, feeInfo);
+            }
+        }
+    }
+
     function updateRemoteBaseURI(
         UpdateURIInput calldata input
     ) external onlyOwner {
         address remoteContract = _remoteContracts[input.destinationBlockchainID];
         require(input.destinationBlockchainID != bytes32(0), "ERC721TokenHome: zero destination blockchain ID");
         require(remoteContract != address(0), "ERC721TokenHome: destination chain not registered");
+        _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
         _updateRemoteBaseURI(
             input.destinationBlockchainID,
             remoteContract,
@@ -195,6 +178,22 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
             })
         );
         emit UpdateRemoteBaseURI(messageID, destinationBlockchainID, remoteContract, uri);
+    }
+
+    function updateTokenURI(
+        uint256 tokenId,
+        string memory newURI,
+        bool updateRemote,
+        TeleporterFeeInfo memory feeInfo
+    ) external virtual onlyOwner {
+        _setTokenURI(tokenId, newURI);
+        if (updateRemote) {
+            bytes32 remoteBlockchainID = _tokenRemoteContracts[tokenId];
+            if (remoteBlockchainID != bytes32(0)) {
+                address remoteContract = _remoteContracts[remoteBlockchainID];
+                _updateRemoteTokenURI(remoteBlockchainID, remoteContract, tokenId, newURI, feeInfo);
+            }
+        }
     }
 
     function updateRemoteTokenURI(UpdateURIInput calldata input, uint256 tokenId, string memory uri) public onlyOwner {
@@ -316,6 +315,17 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
             emit CallFailed(message.recipientContract, tokenId);
             _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
         }
+    }
+
+    function _handleFees(address feeTokenAddress, uint256 feeAmount) internal {
+        if (feeAmount == 0) {
+            return;
+        }
+        SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return _baseURIStorage;
     }
 
     function _receiveTeleporterMessage(
