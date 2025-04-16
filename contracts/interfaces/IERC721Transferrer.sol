@@ -1,6 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+/**
+ * @title IERC721Transferrer
+ * @dev Interface for contracts that can transfer ERC721 tokens across Avalanche chains.
+ * This interface defines the structures, events, and functions needed for cross-chain
+ * token transfers using Avalanche's Interchain Messaging (ICM).
+ */
+
+/**
+ * @notice Input structure for basic token transfers across chains.
+ * @dev Users must populate this structure when calling the send function.
+ *
+ * @param destinationBlockchainID The blockchain ID of the destination chain where the token will be sent.
+ * @param destinationTokenTransferrerAddress The address of the token contract on the destination chain.
+ * @param recipient The address that will receive the token on the destination chain.
+ * @param primaryFeeTokenAddress The address of the token used to pay for the Teleporter message fee.
+ * @param primaryFee The amount of fee tokens to pay for the Teleporter message.
+ * @param requiredGasLimit The gas limit required for executing the message on the destination chain.
+ */
 struct SendTokenInput {
     bytes32 destinationBlockchainID;
     address destinationTokenTransferrerAddress;
@@ -10,6 +28,20 @@ struct SendTokenInput {
     uint256 requiredGasLimit;
 }
 
+/**
+ * @notice Input structure for sending tokens and triggering a contract call on the destination chain.
+ * @dev Users must populate this structure when calling the sendAndCall function.
+ *
+ * @param destinationBlockchainID The blockchain ID of the destination chain where the token will be sent.
+ * @param destinationTokenTransferrerAddress The address of the token contract on the destination chain.
+ * @param recipientContract The address of the contract that will receive the token and be called on the destination chain.
+ * @param fallbackRecipient The address that will receive the token if the contract call fails or doesn't take ownership.
+ * @param recipientPayload The calldata to be passed to the recipient contract.
+ * @param recipientGasLimit The gas limit allocated for the recipient contract call (must be less than requiredGasLimit).
+ * @param primaryFeeTokenAddress The address of the token used to pay for the Teleporter message fee.
+ * @param primaryFee The amount of fee tokens to pay for the Teleporter message.
+ * @param requiredGasLimit The total gas limit required for executing the message on the destination chain.
+ */
 struct SendAndCallInput {
     bytes32 destinationBlockchainID;
     address destinationTokenTransferrerAddress;
@@ -22,6 +54,9 @@ struct SendAndCallInput {
     uint256 requiredGasLimit;
 }
 
+/**
+ * @dev Types of messages that can be sent between transferrer contracts.
+ */
 enum TransferrerMessageType {
     REGISTER_REMOTE,
     UPDATE_REMOTE_BASE_URI,
@@ -30,12 +65,18 @@ enum TransferrerMessageType {
     SINGLE_HOP_CALL
 }
 
+/**
+ * @dev Message structure for basic token transfers.
+ */
 struct SendTokenMessage {
     address recipient;
     uint256 tokenId;
     string tokenURI;
 }
 
+/**
+ * @dev Message structure for send-and-call operations.
+ */
 struct SendAndCallMessage {
     uint256 tokenId;
     string tokenURI;
@@ -46,29 +87,65 @@ struct SendAndCallMessage {
     address fallbackRecipient;
 }
 
+/**
+ * @dev Message structure for updating the base URI on a remote chain.
+ */
 struct UpdateRemoteBaseURIMessage {
     string baseURI;
 }
 
+/**
+ * @dev Message structure for updating a specific token URI on a remote chain.
+ */
 struct UpdateRemoteTokenURIMessage {
     uint256 tokenId;
     string uri;
 }
 
+/**
+ * @dev Generic message structure used for all transferrer messages.
+ */
 struct TransferrerMessage {
     TransferrerMessageType messageType;
     bytes payload;
 }
 
+/**
+ * @dev Emitted when a token is sent to another chain.
+ */
 event TokenSent(bytes32 indexed teleporterMessageID, address indexed sender, uint256 tokenId);
 
+/**
+ * @dev Emitted when a token is sent with contract call data to another chain.
+ */
 event TokenAndCallSent(bytes32 indexed teleporterMessageID, address indexed sender, uint256 tokenId);
 
+/**
+ * @dev Emitted when a contract call succeeds in a send-and-call operation.
+ */
 event CallSucceeded(address indexed recipientContract, uint256 tokenId);
 
+/**
+ * @dev Emitted when a contract call fails in a send-and-call operation.
+ */
 event CallFailed(address indexed recipientContract, uint256 tokenId);
 
+/**
+ * @title IERC721Transferrer
+ * @dev Interface that must be implemented by contracts that enable cross-chain transfers of ERC721 tokens.
+ */
 interface IERC721Transferrer {
+    /**
+     * @notice Sends a token to another chain.
+     * @param input The parameters defining the cross-chain transfer.
+     * @param tokenId The ID of the token to send.
+     */
     function send(SendTokenInput calldata input, uint256 tokenId) external;
+
+    /**
+     * @notice Sends a token to another chain and triggers a contract call on the destination chain.
+     * @param input The parameters defining the cross-chain transfer and contract call.
+     * @param tokenId The ID of the token to send.
+     */
     function sendAndCall(SendAndCallInput calldata input, uint256 tokenId) external;
 }

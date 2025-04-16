@@ -25,19 +25,52 @@ import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/**
+ * @title ERC721TokenHome
+ * @dev A contract enabling cross-chain transfers of ERC721 tokens between Avalanche L1 networks.
+ *
+ * This contract serves as the "home" for ERC721 tokens on their native chain and allows them to be:
+ * 1. Sent to other Avalanche L1 chains using Avalanche's Interchain Messaging (ICM) via Teleporter
+ * 2. Received back from other chains
+ * 3. Managed with metadata updates that propagate across chains
+ *
+ * It supports two primary token transfer modes:
+ * - Basic transfer: Send a token to an address on another chain
+ * - Send and call: Send a token while triggering a contract call on the destination chain
+ *
+ * This contract maintains registries of connected remote chains and tracks the current location
+ * of tokens when they are transferred cross-chain.
+ */
 contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegistryOwnableApp {
+    /// @notice The blockchain ID of the chain this contract is deployed on
     bytes32 private immutable _blockchainID;
 
+    /// @notice Gas limit for updating token URI on remote chains
     uint256 public constant UPDATE_TOKEN_URI_GAS_LIMIT = 120000;
+
+    /// @notice Gas limit for updating base URI on remote chains
     uint256 public constant UPDATE_BASE_URI_GAS_LIMIT = 120000;
 
+    /// @notice Mapping from blockchain ID to the contract address on that chain
     mapping(bytes32 => address) private _remoteContracts;
+
+    /// @notice Mapping from token ID to the blockchain ID where the token currently exists
     mapping(uint256 => bytes32) private _tokenRemoteContracts;
 
+    /// @notice The base URI for all token metadata
     string private _baseURIStorage;
 
+    /// @notice List of all registered remote chains
     bytes32[] private _registeredChains;
 
+    /**
+     * @notice Initializes the ERC721TokenHome contract
+     * @param name The name of the ERC721 token
+     * @param symbol The symbol of the ERC721 token
+     * @param baseURI The base URI for token metadata
+     * @param teleporterRegistryAddress The address of the Teleporter registry
+     * @param minTeleporterVersion The minimum required Teleporter version
+     */
     constructor(
         string memory name,
         string memory symbol,
@@ -49,18 +82,36 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         _baseURIStorage = baseURI;
     }
 
+    /**
+     * @notice Returns all blockchain IDs of registered remote chains
+     * @return Array of blockchain IDs
+     */
     function getRegisteredChains() external view override returns (bytes32[] memory) {
         return _registeredChains;
     }
 
+    /**
+     * @notice Returns the number of registered remote chains
+     * @return Number of registered chains
+     */
     function getRegisteredChainsLength() external view override returns (uint256) {
         return _registeredChains.length;
     }
 
+    /**
+     * @notice Returns the blockchain ID of the current chain
+     * @return The blockchain ID
+     */
     function getBlockchainID() external view override returns (bytes32) {
         return _blockchainID;
     }
 
+    /**
+     * @notice Sends a token to a recipient on another chain
+     * @dev The token is transferred to this contract, and a message is sent to the destination chain
+     * @param input Parameters for the cross-chain token transfer
+     * @param tokenId The ID of the token to send
+     */
     function send(SendTokenInput calldata input, uint256 tokenId) external override {
         _validateSendTokenInput(input);
 
@@ -90,6 +141,13 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         emit TokenSent(messageID, msg.sender, tokenId);
     }
 
+    /**
+     * @notice Sends a token to a contract on another chain and executes a function on that contract
+     * @dev The token is transferred to this contract, and a message is sent to the destination chain
+     * @dev If the contract call fails, the token is sent to the fallback recipient
+     * @param input Parameters for the cross-chain token transfer and contract call
+     * @param tokenId The ID of the token to send
+     */
     function sendAndCall(SendAndCallInput calldata input, uint256 tokenId) external override {
         _validateSendAndCallInput(input);
 
@@ -125,6 +183,13 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         emit TokenAndCallSent(messageID, msg.sender, tokenId);
     }
 
+    /**
+     * @notice Updates the base URI for all tokens and optionally updates it on remote chains
+     * @dev Only callable by the owner
+     * @param newBaseURI The new base URI
+     * @param updateRemotes Whether to update the base URI on all registered remote chains
+     * @param feeInfo Information about the fee to pay for cross-chain messages (if updating remotes)
+     */
     function updateBaseURI(
         string memory newBaseURI,
         bool updateRemotes,
@@ -142,6 +207,11 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         }
     }
 
+    /**
+     * @notice Updates the base URI on a specific remote chain
+     * @dev Only callable by the owner
+     * @param input Parameters for the cross-chain URI update
+     */
     function updateRemoteBaseURI(
         UpdateURIInput calldata input
     ) external onlyOwner {
@@ -157,6 +227,13 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         );
     }
 
+    /**
+     * @notice Internal function to update the base URI on a remote chain
+     * @param destinationBlockchainID The blockchain ID of the destination chain
+     * @param remoteContract The address of the contract on the destination chain
+     * @param uri The new base URI
+     * @param feeInfo Information about the fee to pay for the cross-chain message
+     */
     function _updateRemoteBaseURI(
         bytes32 destinationBlockchainID,
         address remoteContract,
@@ -180,6 +257,14 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         emit UpdateRemoteBaseURI(messageID, destinationBlockchainID, remoteContract, uri);
     }
 
+    /**
+     * @notice Updates the URI for a specific token and optionally updates it on the remote chain
+     * @dev Only callable by the owner
+     * @param tokenId The ID of the token to update
+     * @param newURI The new URI for the token
+     * @param updateRemote Whether to update the URI on the remote chain if the token is currently on another chain
+     * @param feeInfo Information about the fee to pay for the cross-chain message (if updating remote)
+     */
     function updateTokenURI(
         uint256 tokenId,
         string memory newURI,
@@ -196,6 +281,13 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         }
     }
 
+    /**
+     * @notice Updates the URI for a specific token on a specific remote chain
+     * @dev Only callable by the owner
+     * @param input Parameters for the cross-chain URI update
+     * @param tokenId The ID of the token to update
+     * @param uri The new URI for the token
+     */
     function updateRemoteTokenURI(UpdateURIInput calldata input, uint256 tokenId, string memory uri) public onlyOwner {
         address remoteContract = _remoteContracts[input.destinationBlockchainID];
         require(input.destinationBlockchainID != bytes32(0), "ERC721TokenHome: zero destination blockchain ID");
@@ -209,6 +301,14 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         );
     }
 
+    /**
+     * @notice Internal function to update a token URI on a remote chain
+     * @param destinationBlockchainID The blockchain ID of the destination chain
+     * @param remoteContract The address of the contract on the destination chain
+     * @param tokenId The ID of the token to update
+     * @param uri The new URI for the token
+     * @param feeInfo Information about the fee to pay for the cross-chain message
+     */
     function _updateRemoteTokenURI(
         bytes32 destinationBlockchainID,
         address remoteContract,
@@ -233,6 +333,10 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         emit UpdateRemoteTokenURI(messageID, destinationBlockchainID, remoteContract, tokenId, uri);
     }
 
+    /**
+     * @notice Validates the input parameters for a basic token send
+     * @param input The input parameters to validate
+     */
     function _validateSendTokenInput(
         SendTokenInput calldata input
     ) internal view {
@@ -250,6 +354,10 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         require(input.recipient != address(0), "ERC721TokenHome: zero recipient");
     }
 
+    /**
+     * @notice Validates the input parameters for a send and call operation
+     * @param input The input parameters to validate
+     */
     function _validateSendAndCallInput(
         SendAndCallInput calldata input
     ) internal view {
@@ -271,7 +379,12 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         require(input.recipientGasLimit < input.requiredGasLimit, "TokenHome: invalid recipient gas limit");
     }
 
-    // Register a remote contract on another chain
+    /**
+     * @notice Registers a remote contract on another chain
+     * @dev Can only be called internally, triggered by receiving a register message from a remote chain
+     * @param remoteBlockchainID The blockchain ID of the remote chain
+     * @param remoteNftTransferrerAddress The address of the contract on the remote chain
+     */
     function _registerRemote(bytes32 remoteBlockchainID, address remoteNftTransferrerAddress) internal {
         require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: zero remote blockchain ID");
         require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot register remote on same chain");
@@ -284,6 +397,15 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         emit RemoteChainRegistered(remoteBlockchainID, remoteNftTransferrerAddress);
     }
 
+    /**
+     * @notice Handles the send and call operation when receiving a token from another chain
+     * @dev Approves the recipient contract to use the token, then calls it with the specified payload
+     * @dev If the call fails or the token is still owned by this contract, transfers it to the fallback recipient
+     * @param message The message containing the send and call details
+     * @param sourceBlockchainID The blockchain ID of the source chain
+     * @param originSenderAddress The address of the sender contract on the source chain
+     * @param tokenId The ID of the token being transferred
+     */
     function _handleSendAndCall(
         SendAndCallMessage memory message,
         bytes32 sourceBlockchainID,
@@ -317,6 +439,12 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         }
     }
 
+    /**
+     * @notice Handles the collection of fees for cross-chain operations
+     * @dev Transfers the fee token from the sender to this contract
+     * @param feeTokenAddress The address of the token used for fees
+     * @param feeAmount The amount of the fee
+     */
     function _handleFees(address feeTokenAddress, uint256 feeAmount) internal {
         if (feeAmount == 0) {
             return;
@@ -324,10 +452,21 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegist
         SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
     }
 
+    /**
+     * @notice Returns the base URI for token metadata
+     * @return The base URI string
+     */
     function _baseURI() internal view override returns (string memory) {
         return _baseURIStorage;
     }
 
+    /**
+     * @notice Processes incoming Teleporter messages from other chains
+     * @dev Handles different message types: registering remotes, receiving tokens, and send-and-call operations
+     * @param sourceBlockchainID The blockchain ID of the source chain
+     * @param originSenderAddress The address of the sender on the source chain
+     * @param message The encoded message
+     */
     function _receiveTeleporterMessage(
         bytes32 sourceBlockchainID,
         address originSenderAddress,

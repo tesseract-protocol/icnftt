@@ -10,6 +10,12 @@ import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 
 /**
  * @dev ERC721 token with storage based token URI management.
+ *
+ * @notice This is a customized version of OpenZeppelin's ERC721URIStorage contract.
+ * The only difference is that the _tokenURIs mapping is made internal instead of private.
+ * This modification allows inheriting contracts (like ERC721TokenHome and ERC721TokenRemote)
+ * to directly access the token URIs, which is necessary for cross-chain token transfers
+ * where we need to preserve and transmit the token URI along with the token.
  */
 abstract contract ERC721URIStorage is IERC4906, ERC721 {
     using Strings for uint256;
@@ -19,6 +25,7 @@ abstract contract ERC721URIStorage is IERC4906, ERC721 {
     bytes4 private constant ERC4906_INTERFACE_ID = bytes4(0x49064906);
 
     // Optional mapping for token URIs
+    // Modified from private to internal to allow access from inheriting contracts during cross-chain transfers
     mapping(uint256 tokenId => string) internal _tokenURIs;
 
     /**
