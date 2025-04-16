@@ -2,10 +2,11 @@
 pragma solidity 0.8.25;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "../contracts/ERC721TokenHome.sol";
 import "../contracts/ERC721TokenRemote.sol";
-import {SendTokenInput} from "../contracts/interfaces/IERC721Transferrer.sol";
-import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger} from "./Mocks.sol";
+import {SendTokenInput, SendAndCallInput} from "../contracts/interfaces/IERC721Transferrer.sol";
+import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger, MockERC721Receiver} from "./Mocks.sol";
 
 contract ERC721TokenHomePublicMint is ERC721TokenHome {
     constructor(
@@ -30,6 +31,8 @@ contract ICNFTT_Test is Test {
     // Mock contracts
     MockTeleporterMessenger teleporterMessenger;
     MockTeleporterRegistry teleporterRegistry;
+    MockERC721Receiver homeReceiver;
+    MockERC721Receiver remoteReceiver;
 
     // Chain IDs
     bytes32 constant HOME_CHAIN_ID = bytes32(uint256(1));
@@ -82,6 +85,10 @@ contract ICNFTT_Test is Test {
             1 // minTeleporterVersion
         );
         vm.stopPrank();
+
+        // Setup receiver contracts for both home and remote chains
+        homeReceiver = new MockERC721Receiver();
+        remoteReceiver = new MockERC721Receiver();
     }
 
     // Helper function to process teleporter messages
@@ -99,6 +106,23 @@ contract ICNFTT_Test is Test {
 
         // Deliver the register message from remote to home
         processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
+    }
+
+    // Helper function to register remote chain with home and sync the baseURI
+    function _registerRemoteChainAndSyncBaseURI() internal {
+        // Register remote chain with home
+        _registerRemoteChain();
+
+        // Update baseURI on remote
+        vm.prank(owner);
+        homeToken.updateBaseURI(
+            "https://home.nft/",
+            true, // propagate to remote chains
+            TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0})
+        );
+
+        // Process the baseURI update message
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
     }
 
     // Test remote chain registration process
@@ -439,5 +463,275 @@ contract ICNFTT_Test is Test {
         assertEq(homeToken.ownerOf(1), user1);
         assertEq(homeToken.ownerOf(2), user2);
         assertEq(homeToken.ownerOf(3), operator);
+    }
+
+    // Test updating a token's URI locally only
+    function testUpdateTokenURILocally() public {
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Initial URI should combine baseURI and token URI
+        string memory initialURI = string.concat("https://home.nft/", "token1.json");
+        assertEq(homeToken.tokenURI(1), initialURI);
+
+        // Owner updates just the token URI without updating remote
+        vm.prank(owner);
+        homeToken.updateTokenURI(
+            1,
+            "updated-token1.json",
+            false, // don't update remote
+            TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0})
+        );
+
+        // Verify the token URI was updated locally
+        string memory updatedURI = string.concat("https://home.nft/", "updated-token1.json");
+        assertEq(homeToken.tokenURI(1), updatedURI);
+    }
+
+    // Test updating a token's URI on both home and remote
+    function testUpdateTokenURIOnRemote() public {
+        // First register the remote chain and sync baseURI
+        _registerRemoteChainAndSyncBaseURI();
+
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Send the token to remote chain
+        vm.prank(user1);
+        homeToken.send(
+            SendTokenInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipient: user1,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 200000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message to get the token on remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify initial URI on remote
+        string memory initialRemoteURI = string.concat("https://home.nft/", "token1.json");
+        assertEq(remoteToken.tokenURI(1), initialRemoteURI);
+
+        // Owner updates the token URI and propagates to remote
+        vm.prank(owner);
+        homeToken.updateTokenURI(
+            1,
+            "updated-token1.json",
+            true, // update remote
+            TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0})
+        );
+
+        // Process the message to update URI on remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify the token URI was updated on the remote
+        string memory updatedRemoteURI = string.concat("https://home.nft/", "updated-token1.json");
+        assertEq(remoteToken.tokenURI(1), updatedRemoteURI);
+    }
+
+    // Test that token URI is preserved when sending to remote
+    function testTokenURIPreservedWhenSendingToRemote() public {
+        _registerRemoteChainAndSyncBaseURI();
+
+        // User1 mints a token with a custom URI
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "special-token.json");
+
+        // Verify initial URI on home
+        string memory initialHomeURI = string.concat("https://home.nft/", "special-token.json");
+        assertEq(homeToken.tokenURI(1), initialHomeURI);
+
+        // Send token to remote
+        vm.prank(user1);
+        homeToken.send(
+            SendTokenInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipient: user1,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 200000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify the token URI is preserved on remote
+        assertEq(remoteToken.tokenURI(1), initialHomeURI);
+
+        // Send back to home to another user
+        vm.prank(user1);
+        remoteToken.send(
+            SendTokenInput({
+                destinationBlockchainID: HOME_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(homeToken),
+                recipient: user2,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 200000
+            }),
+            1 // tokenId
+        );
+
+        // Process the return message
+        processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
+
+        // Verify the token URI is still preserved after round trip
+        assertEq(homeToken.tokenURI(1), initialHomeURI);
+    }
+
+    // Test sending a token from Home to Remote with sendAndCall
+    function testSendAndCallFromHome() public {
+        // First register the remote chain and sync baseURI
+        _registerRemoteChainAndSyncBaseURI();
+
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Create a simple payload for the test
+        bytes memory testPayload = hex"01";
+
+        // User1 sends token to receiver contract on remote chain with sendAndCall
+        vm.prank(user1);
+        homeToken.sendAndCall(
+            SendAndCallInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipientContract: address(remoteReceiver),
+                fallbackRecipient: user1, // Original owner as fallback
+                recipientPayload: testPayload,
+                recipientGasLimit: 300000,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 600000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message to get the token on remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify the payload was correctly received
+        assertEq(remoteReceiver.lastPayload(), testPayload, "Payload should be correct");
+
+        // Verify the token is owned by the recipient contract
+        assertEq(remoteToken.ownerOf(1), address(remoteReceiver), "Token should be owned by the recipient contract");
+
+        // Verify the last received token has the correct sourceBlockchainID
+        (bytes32 sourceChain,,,,,) = remoteReceiver.lastReceivedToken();
+        assertEq(sourceChain, HOME_CHAIN_ID, "Source chain should be correct");
+    }
+
+    // Test sendAndCall with fallback recipient case
+    function testSendAndCallFromHomeWithFallback() public {
+        // First register the remote chain and sync baseURI
+        _registerRemoteChainAndSyncBaseURI();
+
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Create a simple payload for the test
+        bytes memory testPayload = hex"00";
+
+        // User1 sends token to receiver contract on remote chain with sendAndCall
+        // but with a non-existent recipientContract (zero address) to trigger fallback
+        vm.prank(user1);
+        homeToken.sendAndCall(
+            SendAndCallInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipientContract: address(remoteReceiver), // Invalid recipient to trigger fallback
+                fallbackRecipient: user1, // Original owner as fallback
+                recipientPayload: testPayload,
+                recipientGasLimit: 100000,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 300000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message to get the token on remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify the token was transferred to the fallback recipient
+        assertEq(remoteToken.ownerOf(1), user1);
+
+        // The receiver should not have been called
+        assertEq(remoteReceiver.receiveCount(), 0);
+    }
+
+    // Test sending a token from Remote to Home with sendAndCall
+    function testSendAndCallFromRemote() public {
+        // First register the remote chain, sync baseURI, and get a token to remote
+        _registerRemoteChainAndSyncBaseURI();
+
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Send the token to remote chain
+        vm.prank(user1);
+        homeToken.send(
+            SendTokenInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipient: user1,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 200000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message to get the token on remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify token exists on remote chain owned by user1
+        assertEq(remoteToken.ownerOf(1), user1);
+
+        // Create a simple payload for the test
+        bytes memory testPayload = hex"01";
+
+        // User1 sends token from remote to home receiver with sendAndCall
+        vm.prank(user1);
+        remoteToken.sendAndCall(
+            SendAndCallInput({
+                destinationBlockchainID: HOME_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(homeToken),
+                recipientContract: address(homeReceiver),
+                fallbackRecipient: user1, // Original owner as fallback
+                recipientPayload: testPayload,
+                recipientGasLimit: 300000,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 600000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message to get the token back to home
+        processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
+
+        // Verify the token is owned by the receiver contract
+        assertEq(homeToken.ownerOf(1), address(homeReceiver), "Token should be owned by the receiver contract");
+
+        // Verify the payload was correctly received
+        assertEq(homeReceiver.lastPayload(), testPayload, "Payload should be correct");
+
+        // Check the recorded details
+        (bytes32 sourceChain,,,,,) = homeReceiver.lastReceivedToken();
+        assertEq(sourceChain, REMOTE_CHAIN_ID, "Source chain should be correct");
     }
 }

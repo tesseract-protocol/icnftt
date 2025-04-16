@@ -175,8 +175,6 @@ contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIS
         _mint(address(this), tokenId);
         _setTokenURI(tokenId, message.tokenURI);
 
-        approve(message.recipientContract, tokenId);
-
         bytes memory payload = abi.encodeCall(
             IERC721SendAndCallReceiver.receiveToken,
             (
@@ -189,52 +187,18 @@ contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIS
             )
         );
 
+        _approve(message.recipientContract, tokenId, address(this));
         bool success = CallUtils._callWithExactGas(message.recipientGasLimit, message.recipientContract, payload);
 
         if (success) {
             emit CallSucceeded(message.recipientContract, tokenId);
 
             if (ownerOf(tokenId) == address(this)) {
-                approve(address(0), tokenId);
                 _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
             }
         } else {
             emit CallFailed(message.recipientContract, tokenId);
-            approve(address(0), tokenId);
             _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
-        }
-    }
-
-    function _receiveTeleporterMessage(
-        bytes32 sourceBlockchainID,
-        address originSenderAddress,
-        bytes memory message
-    ) internal override {
-        require(sourceBlockchainID == _homeChainId, "ERC721TokenRemote: invalid source blockchain");
-        require(originSenderAddress == _homeContractAddress, "ERC721TokenRemote: invalid origin sender");
-
-        TransferrerMessage memory transferrerMessage = abi.decode(message, (TransferrerMessage));
-
-        if (!_isRegistered) {
-            _isRegistered = true;
-        }
-
-        if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
-            SendTokenMessage memory sendTokenMessage = abi.decode(transferrerMessage.payload, (SendTokenMessage));
-            _receiveToken(sendTokenMessage.tokenId, sendTokenMessage.recipient, sendTokenMessage.tokenURI);
-        } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
-            SendAndCallMessage memory callMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
-            _handleSendAndCall(callMessage, callMessage.tokenId);
-        } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_REMOTE_BASE_URI) {
-            UpdateRemoteBaseURIMessage memory updateRemoteBaseURIMessage =
-                abi.decode(transferrerMessage.payload, (UpdateRemoteBaseURIMessage));
-            _baseURIStorage = updateRemoteBaseURIMessage.baseURI;
-            emit RemoteBaseURIUpdated(_baseURIStorage);
-        } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_REMOTE_TOKEN_URI) {
-            UpdateRemoteTokenURIMessage memory updateRemoteTokenURIMessage =
-                abi.decode(transferrerMessage.payload, (UpdateRemoteTokenURIMessage));
-            _setTokenURI(updateRemoteTokenURIMessage.tokenId, updateRemoteTokenURIMessage.uri);
-            emit RemoteTokenURIUpdated(updateRemoteTokenURIMessage.tokenId, updateRemoteTokenURIMessage.uri);
         }
     }
 
@@ -269,5 +233,38 @@ contract ERC721TokenRemote is IERC721TokenRemote, IERC721Transferrer, ERC721URIS
 
     function _baseURI() internal view override returns (string memory) {
         return _baseURIStorage;
+    }
+
+    function _receiveTeleporterMessage(
+        bytes32 sourceBlockchainID,
+        address originSenderAddress,
+        bytes memory message
+    ) internal override {
+        require(sourceBlockchainID == _homeChainId, "ERC721TokenRemote: invalid source blockchain");
+        require(originSenderAddress == _homeContractAddress, "ERC721TokenRemote: invalid origin sender");
+
+        TransferrerMessage memory transferrerMessage = abi.decode(message, (TransferrerMessage));
+
+        if (!_isRegistered) {
+            _isRegistered = true;
+        }
+
+        if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
+            SendTokenMessage memory sendTokenMessage = abi.decode(transferrerMessage.payload, (SendTokenMessage));
+            _receiveToken(sendTokenMessage.tokenId, sendTokenMessage.recipient, sendTokenMessage.tokenURI);
+        } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
+            SendAndCallMessage memory callMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
+            _handleSendAndCall(callMessage, callMessage.tokenId);
+        } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_REMOTE_BASE_URI) {
+            UpdateRemoteBaseURIMessage memory updateRemoteBaseURIMessage =
+                abi.decode(transferrerMessage.payload, (UpdateRemoteBaseURIMessage));
+            _baseURIStorage = updateRemoteBaseURIMessage.baseURI;
+            emit RemoteBaseURIUpdated(_baseURIStorage);
+        } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_REMOTE_TOKEN_URI) {
+            UpdateRemoteTokenURIMessage memory updateRemoteTokenURIMessage =
+                abi.decode(transferrerMessage.payload, (UpdateRemoteTokenURIMessage));
+            _setTokenURI(updateRemoteTokenURIMessage.tokenId, updateRemoteTokenURIMessage.uri);
+            emit RemoteTokenURIUpdated(updateRemoteTokenURIMessage.tokenId, updateRemoteTokenURIMessage.uri);
+        }
     }
 }

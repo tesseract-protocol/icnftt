@@ -8,6 +8,8 @@ import {
     TeleporterMessageReceipt
 } from "@teleporter/ITeleporterMessenger.sol";
 import {TransferrerMessage, TransferrerMessageType} from "../contracts/interfaces/IERC721Transferrer.sol";
+import {IERC721SendAndCallReceiver} from "../contracts/interfaces/IERC721SendAndCallReceiver.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 // Mock of IWarpMessenger to return chain IDs
 contract MockWarpMessenger {
@@ -207,5 +209,52 @@ contract MockTeleporterMessenger {
         address destinationAddress
     ) external view returns (uint256) {
         return _pendingMessages[destinationChainID][destinationAddress].length;
+    }
+}
+
+contract MockERC721Receiver is IERC721SendAndCallReceiver {
+    // Records of received tokens
+    struct ReceivedToken {
+        bytes32 sourceBlockchainID;
+        address originTokenTransferrerAddress;
+        address originSenderAddress;
+        address tokenAddress;
+        uint256 tokenId;
+        bytes payload;
+    }
+
+    // Last received token details
+    ReceivedToken public lastReceivedToken;
+
+    // Count of received tokens
+    uint256 public receiveCount;
+
+    // Record of the payload
+    bytes public lastPayload;
+
+    function receiveToken(
+        bytes32 sourceBlockchainID,
+        address originTokenTransferrerAddress,
+        address originSenderAddress,
+        address tokenAddress,
+        uint256 tokenId,
+        bytes calldata payload
+    ) external override {
+        if (payload.length > 0 && payload[0] == 0x01) {
+            IERC721(tokenAddress).transferFrom(tokenAddress, address(this), tokenId);
+        }
+
+        // Record token details
+        lastReceivedToken = ReceivedToken({
+            sourceBlockchainID: sourceBlockchainID,
+            originTokenTransferrerAddress: originTokenTransferrerAddress,
+            originSenderAddress: originSenderAddress,
+            tokenAddress: tokenAddress,
+            tokenId: tokenId,
+            payload: payload
+        });
+
+        // Store the payload for inspection
+        lastPayload = payload;
     }
 }

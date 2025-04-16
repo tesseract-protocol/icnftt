@@ -285,6 +285,39 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
         emit RemoteChainRegistered(remoteBlockchainID, remoteNftTransferrerAddress);
     }
 
+    function _handleSendAndCall(
+        SendAndCallMessage memory message,
+        bytes32 sourceBlockchainID,
+        address originSenderAddress,
+        uint256 tokenId
+    ) internal {
+        bytes memory payload = abi.encodeCall(
+            IERC721SendAndCallReceiver.receiveToken,
+            (
+                sourceBlockchainID,
+                originSenderAddress,
+                message.originSenderAddress,
+                address(this),
+                tokenId,
+                message.recipientPayload
+            )
+        );
+
+        _approve(message.recipientContract, tokenId, address(this));
+        bool success = CallUtils._callWithExactGas(message.recipientGasLimit, message.recipientContract, payload);
+
+        if (success) {
+            emit CallSucceeded(message.recipientContract, tokenId);
+
+            if (ownerOf(tokenId) == address(this)) {
+                _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
+            }
+        } else {
+            emit CallFailed(message.recipientContract, tokenId);
+            _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
+        }
+    }
+
     function _receiveTeleporterMessage(
         bytes32 sourceBlockchainID,
         address originSenderAddress,
@@ -301,43 +334,7 @@ contract ERC721TokenHome is IERC721TokenHome, IERC721Transferrer, ERC721URIStora
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
             SendAndCallMessage memory sendAndCallMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
             _tokenRemoteContracts[sendAndCallMessage.tokenId] = bytes32(0);
-            _handleSendAndCall(sendAndCallMessage, _blockchainID, originSenderAddress, sendAndCallMessage.tokenId);
-        }
-    }
-
-    function _handleSendAndCall(
-        SendAndCallMessage memory message,
-        bytes32 sourceBlockchainID,
-        address originSenderAddress,
-        uint256 tokenId
-    ) internal {
-        approve(message.recipientContract, tokenId);
-
-        bytes memory payload = abi.encodeCall(
-            IERC721SendAndCallReceiver.receiveToken,
-            (
-                sourceBlockchainID,
-                originSenderAddress,
-                message.originSenderAddress,
-                address(this),
-                tokenId,
-                message.recipientPayload
-            )
-        );
-
-        bool success = CallUtils._callWithExactGas(message.recipientGasLimit, message.recipientContract, payload);
-
-        if (success) {
-            emit CallSucceeded(message.recipientContract, tokenId);
-
-            if (ownerOf(tokenId) == address(this)) {
-                approve(address(0), tokenId);
-                _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
-            }
-        } else {
-            emit CallFailed(message.recipientContract, tokenId);
-            approve(address(0), tokenId);
-            _safeTransfer(address(this), message.fallbackRecipient, tokenId, "");
+            _handleSendAndCall(sendAndCallMessage, sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenId);
         }
     }
 }
