@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ERC721URIStorageExtension, ERC721} from "../extensions/ERC721URIStorageExtension.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC721TokenHome, UpdateURIInput} from "./interfaces/IERC721TokenHome.sol";
 import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
 import {
@@ -18,6 +18,7 @@ import {
     CallSucceeded,
     CallFailed
 } from "../interfaces/IERC721Transferrer.sol";
+import {ExtensionMessage} from "../interfaces/IERC721Transferrer.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
@@ -41,7 +42,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * This contract maintains registries of connected remote chains and tracks the current location
  * of tokens when they are transferred cross-chain.
  */
-contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, TeleporterRegistryOwnableApp {
+abstract contract ERC721TokenHome is IERC721TokenHome, ERC721, TeleporterRegistryOwnableApp {
     /// @notice The blockchain ID of the chain this contract is deployed on
     bytes32 private immutable _blockchainID;
 
@@ -52,16 +53,16 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, Telepor
     uint256 public constant UPDATE_BASE_URI_GAS_LIMIT = 120000;
 
     /// @notice Mapping from blockchain ID to the contract address on that chain
-    mapping(bytes32 => address) private _remoteContracts;
+    mapping(bytes32 => address) internal _remoteContracts;
 
     /// @notice Mapping from token ID to the blockchain ID where the token currently exists
-    mapping(uint256 => bytes32) private _tokenRemoteContracts;
+    mapping(uint256 => bytes32) internal _tokenRemoteContracts;
 
     /// @notice The base URI for all token metadata
     string private _baseURIStorage;
 
     /// @notice List of all registered remote chains
-    bytes32[] private _registeredChains;
+    bytes32[] internal _registeredChains;
 
     /**
      * @notice Initializes the ERC721TokenHome contract
@@ -122,7 +123,7 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, Telepor
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
             payload: abi.encode(
-                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, tokenURI: _tokenURIs[tokenId]})
+                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, extensions: _getExtensionMessages(tokenId)})
             )
         });
         bytes32 messageID = _sendTeleporterMessage(
@@ -156,12 +157,12 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, Telepor
 
         SendAndCallMessage memory message = SendAndCallMessage({
             tokenId: tokenId,
-            tokenURI: _tokenURIs[tokenId],
             originSenderAddress: msg.sender,
             recipientContract: input.recipientContract,
             recipientPayload: input.recipientPayload,
             recipientGasLimit: input.recipientGasLimit,
-            fallbackRecipient: input.fallbackRecipient
+            fallbackRecipient: input.fallbackRecipient,
+            extensions: _getExtensionMessages(tokenId)
         });
 
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
@@ -255,30 +256,6 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, Telepor
             })
         );
         emit UpdateRemoteBaseURI(messageID, destinationBlockchainID, remoteContract, uri);
-    }
-
-    /**
-     * @notice Updates the URI for a specific token and optionally updates it on the remote chain
-     * @dev Only callable by the owner
-     * @param tokenId The ID of the token to update
-     * @param newURI The new URI for the token
-     * @param updateRemote Whether to update the URI on the remote chain if the token is currently on another chain
-     * @param feeInfo Information about the fee to pay for the cross-chain message (if updating remote)
-     */
-    function updateTokenURI(
-        uint256 tokenId,
-        string memory newURI,
-        bool updateRemote,
-        TeleporterFeeInfo memory feeInfo
-    ) external virtual onlyOwner {
-        _setTokenURI(tokenId, newURI);
-        if (updateRemote) {
-            bytes32 remoteBlockchainID = _tokenRemoteContracts[tokenId];
-            if (remoteBlockchainID != bytes32(0)) {
-                address remoteContract = _remoteContracts[remoteBlockchainID];
-                _updateRemoteTokenURI(remoteBlockchainID, remoteContract, tokenId, newURI, feeInfo);
-            }
-        }
     }
 
     /**
@@ -456,9 +433,15 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, Telepor
      * @notice Returns the base URI for token metadata
      * @return The base URI string
      */
-    function _baseURI() internal view override returns (string memory) {
+    function _baseURI() internal view virtual override returns (string memory) {
         return _baseURIStorage;
     }
+
+    function _updateExtensions(uint256 tokenId, ExtensionMessage[] memory extensions) internal virtual;
+
+    function _getExtensionMessages(
+        uint256 tokenId
+    ) internal virtual returns (ExtensionMessage[] memory);
 
     /**
      * @notice Processes incoming Teleporter messages from other chains
@@ -471,7 +454,7 @@ contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, Telepor
         bytes32 sourceBlockchainID,
         address originSenderAddress,
         bytes memory message
-    ) internal override {
+    ) internal virtual override {
         TransferrerMessage memory transferrerMessage = abi.decode(message, (TransferrerMessage));
 
         if (transferrerMessage.messageType == TransferrerMessageType.REGISTER_REMOTE) {

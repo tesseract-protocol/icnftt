@@ -71,7 +71,7 @@ enum TransferrerMessageType {
 struct SendTokenMessage {
     address recipient;
     uint256 tokenId;
-    string tokenURI;
+    ExtensionMessage[] extensions;
 }
 
 /**
@@ -79,12 +79,17 @@ struct SendTokenMessage {
  */
 struct SendAndCallMessage {
     uint256 tokenId;
-    string tokenURI;
     address originSenderAddress;
     address recipientContract;
     bytes recipientPayload;
     uint256 recipientGasLimit;
     address fallbackRecipient;
+    ExtensionMessage[] extensions;
+}
+
+struct ExtensionMessage {
+    bytes4 key;
+    bytes value;
 }
 
 /**
