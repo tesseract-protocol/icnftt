@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ERC721URIStorage, ERC721} from "./ERC721URIStorage.sol";
+import {ERC721URIStorageExtension, ERC721} from "../extensions/ERC721URIStorageExtension.sol";
 import {IERC721TokenHome, UpdateURIInput} from "./interfaces/IERC721TokenHome.sol";
-import {IERC721SendAndCallReceiver} from "./interfaces/IERC721SendAndCallReceiver.sol";
+import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
 import {
     TransferrerMessage,
     TransferrerMessageType,
@@ -17,7 +17,7 @@ import {
     SendAndCallMessage,
     CallSucceeded,
     CallFailed
-} from "./interfaces/IERC721Transferrer.sol";
+} from "../interfaces/IERC721Transferrer.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
@@ -41,7 +41,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * This contract maintains registries of connected remote chains and tracks the current location
  * of tokens when they are transferred cross-chain.
  */
-contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenHome is IERC721TokenHome, ERC721URIStorageExtension, TeleporterRegistryOwnableApp {
     /// @notice The blockchain ID of the chain this contract is deployed on
     bytes32 private immutable _blockchainID;
 

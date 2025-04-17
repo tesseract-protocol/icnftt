@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../contracts/ERC721TokenHome.sol";
-import "../contracts/ERC721TokenRemote.sol";
+import "../contracts/TokenHome/ERC721TokenHome.sol";
+import "../contracts/TokenRemote/ERC721TokenRemote.sol";
 import {SendTokenInput, SendAndCallInput} from "../contracts/interfaces/IERC721Transferrer.sol";
 import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger, MockERC721Receiver} from "./Mocks.sol";
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ERC721URIStorage, ERC721} from "./ERC721URIStorage.sol";
+import {ERC721URIStorageExtension, ERC721} from "../extensions/ERC721URIStorageExtension.sol";
 import {IERC721TokenRemote} from "./interfaces/IERC721TokenRemote.sol";
 import {
     TransferrerMessage,
@@ -16,8 +16,8 @@ import {
     SendAndCallMessage,
     CallSucceeded,
     CallFailed
-} from "./interfaces/IERC721Transferrer.sol";
-import {IERC721SendAndCallReceiver} from "./interfaces/IERC721SendAndCallReceiver.sol";
+} from "../interfaces/IERC721Transferrer.sol";
+import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
@@ -41,7 +41,7 @@ import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
  *
  * The contract must be registered with its corresponding home contract before it can be used.
  */
-contract ERC721TokenRemote is IERC721TokenRemote, ERC721URIStorage, TeleporterRegistryOwnableApp {
+contract ERC721TokenRemote is IERC721TokenRemote, ERC721URIStorageExtension, TeleporterRegistryOwnableApp {
     /// @notice The blockchain ID of the home chain where the original tokens exist
     bytes32 internal immutable _homeChainId;
 

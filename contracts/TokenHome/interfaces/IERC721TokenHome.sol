@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IERC721Transferrer} from "./IERC721Transferrer.sol";
+import {IERC721Transferrer} from "../../interfaces/IERC721Transferrer.sol";
 
 /**
  * @notice Input structure for updating URI on remote chains.

@@ -17,7 +17,7 @@ import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
  * to directly access the token URIs, which is necessary for cross-chain token transfers
  * where we need to preserve and transmit the token URI along with the token.
  */
-abstract contract ERC721URIStorage is IERC4906, ERC721 {
+abstract contract ERC721URIStorageExtension is IERC4906, ERC721 {
     using Strings for uint256;
 
     // Interface ID as defined in ERC-4906. This does not correspond to a traditional interface ID as ERC-4906 only
