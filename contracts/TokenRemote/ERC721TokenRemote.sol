@@ -12,12 +12,12 @@ import {
     TokenSent,
     TokenAndCallSent,
     UpdateRemoteBaseURIMessage,
-    UpdateRemoteTokenURIMessage,
     SendAndCallMessage,
     CallSucceeded,
     CallFailed,
     ExtensionMessage
 } from "../interfaces/IERC721Transferrer.sol";
+import {ERC721TokenTransferrer} from "../ERC721TokenTransferrer.sol";
 import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
@@ -42,7 +42,12 @@ import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
  *
  * The contract must be registered with its corresponding home contract before it can be used.
  */
-abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721, TeleporterRegistryOwnableApp {
+abstract contract ERC721TokenRemote is
+    IERC721TokenRemote,
+    ERC721TokenTransferrer,
+    ERC721,
+    TeleporterRegistryOwnableApp
+{
     /// @notice The blockchain ID of the home chain where the original tokens exist
     bytes32 internal immutable _homeChainId;
 
@@ -286,7 +291,7 @@ abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721, TeleporterReg
      */
     function _receiveToken(uint256 tokenId, address recipient, ExtensionMessage[] memory extensions) internal {
         _mint(recipient, tokenId);
-        _updateExtensions(tokenId, extensions);
+        _updateExtensions(extensions);
         emit TokenMinted(tokenId, recipient);
     }
 
@@ -310,12 +315,6 @@ abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721, TeleporterReg
     function _baseURI() internal view virtual override returns (string memory) {
         return _baseURIStorage;
     }
-
-    function _updateExtensions(uint256 tokenId, ExtensionMessage[] memory extensions) internal virtual;
-
-    function _getExtensionMessages(
-        uint256 tokenId
-    ) internal virtual returns (ExtensionMessage[] memory);
 
     /**
      * @notice Processes incoming Teleporter messages from the home chain
@@ -350,6 +349,9 @@ abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721, TeleporterReg
                 abi.decode(transferrerMessage.payload, (UpdateRemoteBaseURIMessage));
             _baseURIStorage = updateRemoteBaseURIMessage.baseURI;
             emit RemoteBaseURIUpdated(_baseURIStorage);
+        } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_EXTENSIONS) {
+            ExtensionMessage[] memory extensions = abi.decode(transferrerMessage.payload, (ExtensionMessage[]));
+            _updateExtensions(extensions);
         }
     }
 }

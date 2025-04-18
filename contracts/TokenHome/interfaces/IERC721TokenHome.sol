@@ -4,19 +4,6 @@ pragma solidity 0.8.25;
 import {IERC721Transferrer} from "../../interfaces/IERC721Transferrer.sol";
 
 /**
- * @notice Input structure for updating URI on remote chains.
- *
- * @param destinationBlockchainID The blockchain ID of the destination chain to update.
- * @param primaryFeeTokenAddress The address of the token used to pay for the Teleporter message fee.
- * @param primaryFee The amount of fee tokens to pay for the Teleporter message.
- */
-struct UpdateURIInput {
-    bytes32 destinationBlockchainID;
-    address primaryFeeTokenAddress;
-    uint256 primaryFee;
-}
-
-/**
  * @title IERC721TokenHome
  * @dev Interface for a contract that manages ERC721 tokens on their native Avalanche L1 chain.
  *
@@ -68,21 +55,5 @@ interface IERC721TokenHome is IERC721Transferrer {
         bytes32 indexed destinationBlockchainID,
         address indexed remote,
         string baseURI
-    );
-
-    /**
-     * @dev Emitted when a request to update a specific token URI on a remote chain is sent
-     * @param teleporterMessageID The ID of the Teleporter message
-     * @param destinationBlockchainID The blockchain ID of the destination chain
-     * @param remote The address of the contract on the remote chain
-     * @param tokenId The ID of the token
-     * @param uri The new token URI
-     */
-    event UpdateRemoteTokenURI(
-        bytes32 indexed teleporterMessageID,
-        bytes32 indexed destinationBlockchainID,
-        address indexed remote,
-        uint256 tokenId,
-        string uri
     );
 }
