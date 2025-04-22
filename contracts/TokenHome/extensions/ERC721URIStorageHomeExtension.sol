@@ -12,6 +12,9 @@ import {
 } from "../../extensions/interfaces/IERC721URIStorageExtension.sol";
 
 abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ERC721TokenHome {
+    /// @notice Gas limit for updating token URI on remote chains
+    uint256 public constant UPDATE_TOKEN_URI_GAS_LIMIT = 120000;
+
     function _baseURI() internal view virtual override (ERC721, ERC721TokenHome) returns (string memory) {
         return super._baseURI();
     }
@@ -44,7 +47,7 @@ abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ER
     ) external virtual onlyOwner {
         _setTokenURI(tokenId, newURI);
         if (updateRemote) {
-            bytes32 remoteBlockchainID = _tokenRemoteContracts[tokenId];
+            bytes32 remoteBlockchainID = _tokenLocation[tokenId];
             if (remoteBlockchainID != bytes32(0)) {
                 address remoteContract = _remoteContracts[remoteBlockchainID];
                 _updateRemoteTokenURI(remoteBlockchainID, remoteContract, tokenId, newURI, feeInfo);

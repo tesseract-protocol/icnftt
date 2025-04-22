@@ -31,6 +31,24 @@ interface IERC721TokenHome is IERC721Transferrer {
     function getBlockchainID() external view returns (bytes32);
 
     /**
+     * @notice Returns the address of the contract on a remote chain
+     * @param remoteBlockchainID The blockchain ID of the remote chain
+     * @return The address of the contract on the remote chain
+     */
+    function getRemoteContract(
+        bytes32 remoteBlockchainID
+    ) external view returns (address);
+
+    /**
+     * @notice Returns the blockchain ID of the remote chain where a token is located
+     * @param tokenId The ID of the token
+     * @return The blockchain ID of the remote chain
+     */
+    function getTokenLocation(
+        uint256 tokenId
+    ) external view returns (bytes32);
+
+    /**
      * @dev Emitted when the base URI for all tokens is updated
      * @param newBaseURI The new base URI
      */

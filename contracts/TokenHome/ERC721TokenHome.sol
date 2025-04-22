@@ -45,23 +45,20 @@ import "forge-std/console.sol";
  */
 
 abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, ERC721, TeleporterRegistryOwnableApp {
+    /// @notice Gas limit for updating base URI on remote chains
+    uint256 public constant UPDATE_BASE_URI_GAS_LIMIT = 120000;
+
     /// @notice The blockchain ID of the chain this contract is deployed on
     bytes32 private immutable _blockchainID;
 
-    /// @notice Gas limit for updating token URI on remote chains
-    uint256 public constant UPDATE_TOKEN_URI_GAS_LIMIT = 120000;
-
-    /// @notice Gas limit for updating base URI on remote chains
-    uint256 public constant UPDATE_BASE_URI_GAS_LIMIT = 120000;
+    /// @notice The base URI for all token metadata
+    string private _baseURIStorage;
 
     /// @notice Mapping from blockchain ID to the contract address on that chain
     mapping(bytes32 => address) internal _remoteContracts;
 
     /// @notice Mapping from token ID to the blockchain ID where the token currently exists
-    mapping(uint256 => bytes32) internal _tokenRemoteContracts;
-
-    /// @notice The base URI for all token metadata
-    string private _baseURIStorage;
+    mapping(uint256 => bytes32) internal _tokenLocation;
 
     /// @notice List of all registered remote chains
     bytes32[] internal _registeredChains;
@@ -86,6 +83,14 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
     }
 
     /**
+     * @notice Returns the blockchain ID of the current chain
+     * @return The blockchain ID
+     */
+    function getBlockchainID() external view override returns (bytes32) {
+        return _blockchainID;
+    }
+
+    /**
      * @notice Returns all blockchain IDs of registered remote chains
      * @return Array of blockchain IDs
      */
@@ -101,12 +106,16 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
         return _registeredChains.length;
     }
 
-    /**
-     * @notice Returns the blockchain ID of the current chain
-     * @return The blockchain ID
-     */
-    function getBlockchainID() external view override returns (bytes32) {
-        return _blockchainID;
+    function getRemoteContract(
+        bytes32 remoteBlockchainID
+    ) external view override returns (address) {
+        return _remoteContracts[remoteBlockchainID];
+    }
+
+    function getTokenLocation(
+        uint256 tokenId
+    ) external view override returns (bytes32) {
+        return _tokenLocation[tokenId];
     }
 
     /**
@@ -139,7 +148,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
             })
         );
 
-        _tokenRemoteContracts[tokenId] = input.destinationBlockchainID;
+        _tokenLocation[tokenId] = input.destinationBlockchainID;
 
         emit TokenSent(messageID, msg.sender, tokenId);
     }
@@ -181,7 +190,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
             })
         );
 
-        _tokenRemoteContracts[tokenId] = input.destinationBlockchainID;
+        _tokenLocation[tokenId] = input.destinationBlockchainID;
 
         emit TokenAndCallSent(messageID, msg.sender, tokenId);
     }
@@ -393,7 +402,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
         uint256 tokenId
     ) internal view {
         require(originSenderAddress == _remoteContracts[sourceBlockchainID], "ERC721TokenHome: invalid sender");
-        require(_tokenRemoteContracts[tokenId] == sourceBlockchainID, "ERC721TokenHome: invalid token source");
+        require(_tokenLocation[tokenId] == sourceBlockchainID, "ERC721TokenHome: invalid token source");
     }
 
     /**
@@ -415,12 +424,12 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
             SendTokenMessage memory sendTokenMessage = abi.decode(transferrerMessage.payload, (SendTokenMessage));
             _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendTokenMessage.tokenId);
-            _tokenRemoteContracts[sendTokenMessage.tokenId] = bytes32(0);
+            _tokenLocation[sendTokenMessage.tokenId] = bytes32(0);
             _safeTransfer(address(this), sendTokenMessage.recipient, sendTokenMessage.tokenId, "");
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
             SendAndCallMessage memory sendAndCallMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
             _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenId);
-            _tokenRemoteContracts[sendAndCallMessage.tokenId] = bytes32(0);
+            _tokenLocation[sendAndCallMessage.tokenId] = bytes32(0);
             _handleSendAndCall(sendAndCallMessage, sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenId);
         } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_EXTENSIONS) {
             ExtensionMessage[] memory extensions = abi.decode(transferrerMessage.payload, (ExtensionMessage[]));

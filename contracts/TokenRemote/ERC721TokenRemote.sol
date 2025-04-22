@@ -48,14 +48,14 @@ abstract contract ERC721TokenRemote is
     ERC721,
     TeleporterRegistryOwnableApp
 {
+    /// @notice The blockchain ID of the chain this contract is deployed on
+    bytes32 internal immutable _blockchainID;
+
     /// @notice The blockchain ID of the home chain where the original tokens exist
-    bytes32 internal immutable _homeChainId;
+    bytes32 internal immutable _homeBlockchainID;
 
     /// @notice The address of the token contract on the home chain
     address internal immutable _homeContractAddress;
-
-    /// @notice The blockchain ID of the chain this contract is deployed on
-    bytes32 internal immutable _blockchainID;
 
     /// @notice Gas limit required for registering with the home contract
     uint256 public constant REGISTER_REMOTE_REQUIRED_GAS = 130_000;
@@ -86,19 +86,19 @@ abstract contract ERC721TokenRemote is
         require(homeChainId_ != bytes32(0), "ERC721TokenRemote: zero home blockchain ID");
         require(homeContractAddress_ != address(0), "ERC721TokenRemote: zero home contract address");
 
-        _homeChainId = homeChainId_;
+        _homeBlockchainID = homeChainId_;
         _homeContractAddress = homeContractAddress_;
         _blockchainID = IWarpMessenger(0x0200000000000000000000000000000000000005).getBlockchainID();
 
-        emit HomeChainRegistered(_homeChainId, _homeContractAddress);
+        emit HomeChainRegistered(_homeBlockchainID, _homeContractAddress);
     }
 
     /**
      * @notice Returns the blockchain ID of the home chain
      * @return The home chain's blockchain ID
      */
-    function getHomeChainId() external view override returns (bytes32) {
-        return _homeChainId;
+    function getHomeBlockchainID() external view override returns (bytes32) {
+        return _homeBlockchainID;
     }
 
     /**
@@ -132,7 +132,7 @@ abstract contract ERC721TokenRemote is
      * @param tokenId The ID of the token to send
      */
     function send(SendTokenInput calldata input, uint256 tokenId) external override {
-        require(input.destinationBlockchainID == _homeChainId, "ERC721TokenRemote: can only send to home chain");
+        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
         require(
             input.destinationTokenTransferrerAddress == _homeContractAddress,
             "ERC721TokenRemote: can only send to home contract"
@@ -175,7 +175,7 @@ abstract contract ERC721TokenRemote is
      * @param tokenId The ID of the token to send
      */
     function sendAndCall(SendAndCallInput calldata input, uint256 tokenId) external override {
-        require(input.destinationBlockchainID == _homeChainId, "ERC721TokenRemote: can only send to home chain");
+        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
         require(
             input.destinationTokenTransferrerAddress == _homeContractAddress,
             "ERC721TokenRemote: can only send to home contract"
@@ -232,7 +232,7 @@ abstract contract ERC721TokenRemote is
         bytes memory payload = abi.encodeCall(
             IERC721SendAndCallReceiver.receiveToken,
             (
-                _homeChainId,
+                _homeBlockchainID,
                 _homeContractAddress,
                 message.originSenderAddress,
                 address(this),
@@ -273,7 +273,7 @@ abstract contract ERC721TokenRemote is
 
         _sendTeleporterMessage(
             TeleporterMessageInput({
-                destinationBlockchainID: _homeChainId,
+                destinationBlockchainID: _homeBlockchainID,
                 destinationAddress: _homeContractAddress,
                 feeInfo: feeInfo,
                 requiredGasLimit: REGISTER_REMOTE_REQUIRED_GAS,
@@ -328,7 +328,7 @@ abstract contract ERC721TokenRemote is
         address originSenderAddress,
         bytes memory message
     ) internal virtual override {
-        require(sourceBlockchainID == _homeChainId, "ERC721TokenRemote: invalid source blockchain");
+        require(sourceBlockchainID == _homeBlockchainID, "ERC721TokenRemote: invalid source blockchain");
         require(originSenderAddress == _homeContractAddress, "ERC721TokenRemote: invalid origin sender");
 
         TransferrerMessage memory transferrerMessage = abi.decode(message, (TransferrerMessage));
