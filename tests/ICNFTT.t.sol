@@ -3,12 +3,13 @@ pragma solidity 0.8.25;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../contracts/ERC721TokenHome.sol";
-import "../contracts/ERC721TokenRemote.sol";
+import "../contracts/TokenHome/ERC721TokenHome.sol";
+import "../contracts/TokenHome/extensions/ERC721URIStorageHomeExtension.sol";
+import "../contracts/TokenRemote/ERC721TokenRemote.sol";
 import {SendTokenInput, SendAndCallInput} from "../contracts/interfaces/IERC721Transferrer.sol";
 import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger, MockERC721Receiver} from "./Mocks.sol";
 
-contract ERC721TokenHomePublicMint is ERC721TokenHome {
+contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExtension {
     constructor(
         string memory name,
         string memory symbol,
@@ -17,9 +18,93 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome {
         uint256 minTeleporterVersion
     ) ERC721TokenHome(name, symbol, baseURI, teleporterRegistryAddress, minTeleporterVersion) {}
 
-    function mint(address to, uint256 tokenId, string memory tokenURI) external {
+    function mint(address to, uint256 tokenId, string memory _tokenURI) external {
         _mint(to, tokenId);
-        _setTokenURI(tokenId, tokenURI);
+        _setTokenURI(tokenId, _tokenURI);
+    }
+
+    function _updateExtensions(
+        ExtensionMessage[] memory extensions
+    ) internal override {
+        for (uint256 i = 0; i < extensions.length; i++) {
+            if (extensions[i].key == ERC4906_INTERFACE_ID) {
+                ERC721URIStorageExtension._update(extensions[i]);
+            }
+        }
+    }
+
+    function _getExtensionMessages(
+        uint256 tokenId
+    ) internal view override returns (ExtensionMessage[] memory) {
+        ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](1);
+        extensionMessages[0] = ERC721URIStorageExtension._getMessage(tokenId);
+        return extensionMessages;
+    }
+
+    function _baseURI()
+        internal
+        view
+        override (ERC721URIStorageHomeExtension, ERC721TokenHome)
+        returns (string memory)
+    {
+        return super._baseURI();
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override (ERC721URIStorageHomeExtension, ERC721) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function tokenURI(
+        uint256 tokenId
+    ) public view override (ERC721URIStorageHomeExtension, ERC721) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+}
+
+contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension {
+    constructor(
+        string memory name,
+        string memory symbol,
+        bytes32 homeChainId,
+        address homeTokenAddress,
+        address teleporterRegistryAddress,
+        uint256 minTeleporterVersion
+    ) ERC721TokenRemote(name, symbol, homeChainId, homeTokenAddress, teleporterRegistryAddress, minTeleporterVersion) {}
+
+    function _updateExtensions(
+        ExtensionMessage[] memory extensions
+    ) internal override {
+        for (uint256 i = 0; i < extensions.length; i++) {
+            if (extensions[i].key == ERC4906_INTERFACE_ID) {
+                ERC721URIStorageExtension._update(extensions[i]);
+            }
+        }
+    }
+
+    function _getExtensionMessages(
+        uint256 tokenId
+    ) internal view override returns (ExtensionMessage[] memory) {
+        ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](1);
+        extensionMessages[0] = ERC721URIStorageExtension._getMessage(tokenId);
+        return extensionMessages;
+    }
+
+    function _baseURI() internal view override (ERC721TokenRemote, ERC721) returns (string memory) {
+        return super._baseURI();
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override (ERC721URIStorageExtension, ERC721) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function tokenURI(
+        uint256 tokenId
+    ) public view override (ERC721URIStorageExtension, ERC721) returns (string memory) {
+        return super.tokenURI(tokenId);
     }
 }
 
@@ -76,7 +161,7 @@ contract ICNFTT_Test is Test {
 
         // Setup remote token contract
         vm.startPrank(owner);
-        remoteToken = new ERC721TokenRemote(
+        remoteToken = new TokenRemote(
             "RemoteNFT",
             "RNFT",
             HOME_CHAIN_ID,

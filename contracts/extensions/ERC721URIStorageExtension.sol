@@ -1,31 +1,26 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v5.0.0) (token/ERC721/extensions/ERC721URIStorage.sol)
-
-pragma solidity ^0.8.20;
+pragma solidity 0.8.25;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IERC4906} from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
-
+import {ExtensionMessage} from "../interfaces/IERC721Transferrer.sol";
+import {URIStorageExtensionMessage} from "./interfaces/IERC721URIStorageExtension.sol";
 /**
  * @dev ERC721 token with storage based token URI management.
  *
  * @notice This is a customized version of OpenZeppelin's ERC721URIStorage contract.
- * The only difference is that the _tokenURIs mapping is made internal instead of private.
- * This modification allows inheriting contracts (like ERC721TokenHome and ERC721TokenRemote)
- * to directly access the token URIs, which is necessary for cross-chain token transfers
- * where we need to preserve and transmit the token URI along with the token.
  */
-abstract contract ERC721URIStorage is IERC4906, ERC721 {
+
+abstract contract ERC721URIStorageExtension is IERC4906, ERC721 {
     using Strings for uint256;
 
     // Interface ID as defined in ERC-4906. This does not correspond to a traditional interface ID as ERC-4906 only
     // defines events and does not include any external function.
-    bytes4 private constant ERC4906_INTERFACE_ID = bytes4(0x49064906);
+    bytes4 internal constant ERC4906_INTERFACE_ID = bytes4(0x49064906);
 
     // Optional mapping for token URIs
-    // Modified from private to internal to allow access from inheriting contracts during cross-chain transfers
     mapping(uint256 tokenId => string) internal _tokenURIs;
 
     /**
@@ -68,5 +63,23 @@ abstract contract ERC721URIStorage is IERC4906, ERC721 {
     function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
         _tokenURIs[tokenId] = _tokenURI;
         emit MetadataUpdate(tokenId);
+    }
+
+    function _update(
+        ExtensionMessage memory extension
+    ) internal {
+        if (extension.key == ERC4906_INTERFACE_ID) {
+            URIStorageExtensionMessage memory uriStorageHomeExtensionMessage =
+                abi.decode(extension.value, (URIStorageExtensionMessage));
+            _setTokenURI(uriStorageHomeExtensionMessage.tokenId, uriStorageHomeExtensionMessage.uri);
+        }
+    }
+
+    function _getMessage(
+        uint256 tokenId
+    ) internal view returns (ExtensionMessage memory) {
+        return ExtensionMessage(
+            ERC4906_INTERFACE_ID, abi.encode(URIStorageExtensionMessage({tokenId: tokenId, uri: _tokenURIs[tokenId]}))
+        );
     }
 }

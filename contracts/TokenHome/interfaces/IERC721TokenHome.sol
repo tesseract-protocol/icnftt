@@ -1,20 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IERC721Transferrer} from "./IERC721Transferrer.sol";
-
-/**
- * @notice Input structure for updating URI on remote chains.
- *
- * @param destinationBlockchainID The blockchain ID of the destination chain to update.
- * @param primaryFeeTokenAddress The address of the token used to pay for the Teleporter message fee.
- * @param primaryFee The amount of fee tokens to pay for the Teleporter message.
- */
-struct UpdateURIInput {
-    bytes32 destinationBlockchainID;
-    address primaryFeeTokenAddress;
-    uint256 primaryFee;
-}
+import {IERC721Transferrer} from "../../interfaces/IERC721Transferrer.sol";
 
 /**
  * @title IERC721TokenHome
@@ -44,6 +31,24 @@ interface IERC721TokenHome is IERC721Transferrer {
     function getBlockchainID() external view returns (bytes32);
 
     /**
+     * @notice Returns the address of the contract on a remote chain
+     * @param remoteBlockchainID The blockchain ID of the remote chain
+     * @return The address of the contract on the remote chain
+     */
+    function getRemoteContract(
+        bytes32 remoteBlockchainID
+    ) external view returns (address);
+
+    /**
+     * @notice Returns the blockchain ID of the remote chain where a token is located
+     * @param tokenId The ID of the token
+     * @return The blockchain ID of the remote chain
+     */
+    function getTokenLocation(
+        uint256 tokenId
+    ) external view returns (bytes32);
+
+    /**
      * @dev Emitted when the base URI for all tokens is updated
      * @param newBaseURI The new base URI
      */
@@ -68,21 +73,5 @@ interface IERC721TokenHome is IERC721Transferrer {
         bytes32 indexed destinationBlockchainID,
         address indexed remote,
         string baseURI
-    );
-
-    /**
-     * @dev Emitted when a request to update a specific token URI on a remote chain is sent
-     * @param teleporterMessageID The ID of the Teleporter message
-     * @param destinationBlockchainID The blockchain ID of the destination chain
-     * @param remote The address of the contract on the remote chain
-     * @param tokenId The ID of the token
-     * @param uri The new token URI
-     */
-    event UpdateRemoteTokenURI(
-        bytes32 indexed teleporterMessageID,
-        bytes32 indexed destinationBlockchainID,
-        address indexed remote,
-        uint256 tokenId,
-        string uri
     );
 }
