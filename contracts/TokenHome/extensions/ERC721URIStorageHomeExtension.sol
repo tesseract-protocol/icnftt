@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ERC721TokenHome, ERC721} from "../ERC721TokenHome.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721TokenTransferrer} from "../../ERC721TokenTransferrer.sol";
+import {ERC721TokenHome} from "../ERC721TokenHome.sol";
 import {ERC721URIStorageExtension} from "../../extensions/ERC721URIStorageExtension.sol";
 import {TransferrerMessage, TransferrerMessageType, ExtensionMessage} from "../../interfaces/IERC721Transferrer.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
@@ -15,7 +17,7 @@ abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ER
     /// @notice Gas limit for updating token URI on remote chains
     uint256 public constant UPDATE_TOKEN_URI_GAS_LIMIT = 120000;
 
-    function _baseURI() internal view virtual override (ERC721, ERC721TokenHome) returns (string memory) {
+    function _baseURI() internal view virtual override (ERC721, ERC721TokenTransferrer) returns (string memory) {
         return super._baseURI();
     }
 
@@ -108,5 +110,13 @@ abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ER
             })
         );
         emit UpdateRemoteTokenURI(messageID, destinationBlockchainID, remoteContract, tokenId, uri);
+    }
+
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal virtual override (ERC721URIStorageExtension, ERC721TokenTransferrer) returns (address) {
+        return super._update(to, tokenId, auth);
     }
 }

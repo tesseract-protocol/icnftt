@@ -154,4 +154,10 @@ interface IERC721Transferrer {
      * @param tokenId The ID of the token to send.
      */
     function sendAndCall(SendAndCallInput calldata input, uint256 tokenId) external;
+
+    /**
+     * @notice Returns the blockchain ID that the transferrer is deployed on.
+     * @return The blockchain ID.
+     */
+    function getBlockchainID() external view returns (bytes32);
 }

@@ -67,7 +67,7 @@ abstract contract ERC721URIStorageExtension is IERC4906, ERC721 {
 
     function _update(
         ExtensionMessage memory extension
-    ) internal {
+    ) internal virtual {
         if (extension.key == ERC4906_INTERFACE_ID) {
             URIStorageExtensionMessage memory uriStorageHomeExtensionMessage =
                 abi.decode(extension.value, (URIStorageExtensionMessage));
@@ -81,5 +81,9 @@ abstract contract ERC721URIStorageExtension is IERC4906, ERC721 {
         return ExtensionMessage(
             ERC4906_INTERFACE_ID, abi.encode(URIStorageExtensionMessage({tokenId: tokenId, uri: _tokenURIs[tokenId]}))
         );
+    }
+
+    function _update(address to, uint256 tokenId, address auth) internal virtual override (ERC721) returns (address) {
+        return super._update(to, tokenId, auth);
     }
 }

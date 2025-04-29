@@ -5,11 +5,14 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../contracts/TokenHome/ERC721TokenHome.sol";
 import "../contracts/TokenHome/extensions/ERC721URIStorageHomeExtension.sol";
+import "../contracts/TokenHome/extensions/ERC721PausableHomeExtension.sol";
 import "../contracts/TokenRemote/ERC721TokenRemote.sol";
+import "../contracts/TokenRemote/extensions/ERC721PausableRemoteExtension.sol";
 import {SendTokenInput, SendAndCallInput} from "../contracts/interfaces/IERC721Transferrer.sol";
 import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger, MockERC721Receiver} from "./Mocks.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExtension {
+contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExtension, ERC721PausableHomeExtension {
     constructor(
         string memory name,
         string memory symbol,
@@ -25,10 +28,12 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExten
 
     function _updateExtensions(
         ExtensionMessage[] memory extensions
-    ) internal override {
+    ) internal override (ERC721TokenTransferrer) {
         for (uint256 i = 0; i < extensions.length; i++) {
             if (extensions[i].key == ERC4906_INTERFACE_ID) {
                 ERC721URIStorageExtension._update(extensions[i]);
+            } else if (extensions[i].key == PAUSABLE_INTERFACE_ID) {
+                ERC721PausableExtension._update(extensions[i]);
             }
         }
     }
@@ -36,15 +41,23 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExten
     function _getExtensionMessages(
         uint256 tokenId
     ) internal view override returns (ExtensionMessage[] memory) {
-        ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](1);
+        ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](2);
         extensionMessages[0] = ERC721URIStorageExtension._getMessage(tokenId);
+        extensionMessages[1] = ERC721PausableExtension._getMessage();
         return extensionMessages;
+    }
+
+    function _beforeTokenTransfer(
+        address,
+        uint256 tokenId
+    ) internal override (ERC721TokenTransferrer, ERC721PausableHomeExtension) {
+        super._beforeTokenTransfer(msg.sender, tokenId);
     }
 
     function _baseURI()
         internal
         view
-        override (ERC721URIStorageHomeExtension, ERC721TokenHome)
+        override (ERC721URIStorageHomeExtension, ERC721TokenTransferrer, ERC721PausableHomeExtension)
         returns (string memory)
     {
         return super._baseURI();
@@ -61,9 +74,27 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExten
     ) public view override (ERC721URIStorageHomeExtension, ERC721) returns (string memory) {
         return super.tokenURI(tokenId);
     }
+
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    )
+        internal
+        override (ERC721TokenTransferrer, ERC721URIStorageHomeExtension, ERC721PausableHomeExtension)
+        returns (address)
+    {
+        return super._update(to, tokenId, auth);
+    }
+
+    function _update(
+        ExtensionMessage memory extension
+    ) internal override (ERC721URIStorageExtension, ERC721PausableExtension) {
+        super._update(extension);
+    }
 }
 
-contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension {
+contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension, ERC721PausableRemoteExtension {
     constructor(
         string memory name,
         string memory symbol,
@@ -79,6 +110,8 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension {
         for (uint256 i = 0; i < extensions.length; i++) {
             if (extensions[i].key == ERC4906_INTERFACE_ID) {
                 ERC721URIStorageExtension._update(extensions[i]);
+            } else if (extensions[i].key == PAUSABLE_INTERFACE_ID) {
+                ERC721PausableExtension._update(extensions[i]);
             }
         }
     }
@@ -86,12 +119,18 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension {
     function _getExtensionMessages(
         uint256 tokenId
     ) internal view override returns (ExtensionMessage[] memory) {
-        ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](1);
+        ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](2);
         extensionMessages[0] = ERC721URIStorageExtension._getMessage(tokenId);
+        extensionMessages[1] = ERC721PausableExtension._getMessage();
         return extensionMessages;
     }
 
-    function _baseURI() internal view override (ERC721TokenRemote, ERC721) returns (string memory) {
+    function _baseURI()
+        internal
+        view
+        override (ERC721, ERC721TokenTransferrer, ERC721PausableRemoteExtension)
+        returns (string memory)
+    {
         return super._baseURI();
     }
 
@@ -105,6 +144,31 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension {
         uint256 tokenId
     ) public view override (ERC721URIStorageExtension, ERC721) returns (string memory) {
         return super.tokenURI(tokenId);
+    }
+
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    )
+        internal
+        override (ERC721TokenTransferrer, ERC721URIStorageExtension, ERC721PausableRemoteExtension)
+        returns (address)
+    {
+        return super._update(to, tokenId, auth);
+    }
+
+    function _beforeTokenTransfer(
+        address,
+        uint256 tokenId
+    ) internal override (ERC721TokenTransferrer, ERC721PausableRemoteExtension) {
+        super._beforeTokenTransfer(msg.sender, tokenId);
+    }
+
+    function _update(
+        ExtensionMessage memory extension
+    ) internal override (ERC721URIStorageExtension, ERC721PausableExtension) {
+        super._update(extension);
     }
 }
 
@@ -818,5 +882,144 @@ contract ICNFTT_Test is Test {
         // Check the recorded details
         (bytes32 sourceChain,,,,,) = homeReceiver.lastReceivedToken();
         assertEq(sourceChain, REMOTE_CHAIN_ID, "Source chain should be correct");
+    }
+
+    // Test pausing functionality on home chain only
+    function testPauseOnHomeChain() public {
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Owner pauses the contract without updating remotes
+        vm.prank(owner);
+        homeToken.pause(false, TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
+
+        // Token transfers should be blocked when paused
+        vm.prank(user1);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        homeToken.transferFrom(user1, user2, 1);
+
+        // Owner unpauses the contract
+        vm.prank(owner);
+        homeToken.unpause(false, TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
+
+        // Transfer should now succeed
+        vm.prank(user1);
+        homeToken.transferFrom(user1, user2, 1);
+
+        // Verify the token was transferred
+        assertEq(homeToken.ownerOf(1), user2);
+    }
+
+    // Test pausing functionality propagating from home to remote
+    function testPauseFromHomeToRemote() public {
+        // First register the remote chain and sync baseURI
+        _registerRemoteChainAndSyncBaseURI();
+
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Send the token to remote chain
+        vm.prank(user1);
+        homeToken.send(
+            SendTokenInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipient: user1,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 200000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message to get the token on remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify token is on remote chain
+        assertEq(remoteToken.ownerOf(1), user1);
+
+        // Owner pauses the contract and propagates to remote
+        vm.prank(owner);
+        homeToken.pause(true, TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
+
+        // Process the pause message
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Token transfers should be blocked on remote when paused
+        vm.prank(user1);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        remoteToken.transferFrom(user1, user2, 1);
+
+        // Owner unpauses the contract and propagates to remote
+        vm.prank(owner);
+        homeToken.unpause(true, TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
+
+        // Process the unpause message
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Transfer should now succeed on remote
+        vm.prank(user1);
+        remoteToken.transferFrom(user1, user2, 1);
+
+        // Verify the token was transferred on remote
+        assertEq(remoteToken.ownerOf(1), user2);
+    }
+
+    // Test updating pause state for a specific remote chain
+    function testUpdateSpecificRemotePauseState() public {
+        // First register the remote chain and sync baseURI
+        _registerRemoteChainAndSyncBaseURI();
+
+        // User1 mints a token
+        vm.prank(user1);
+        homeToken.mint(user1, 1, "token1.json");
+
+        // Send the token to remote chain
+        vm.prank(user1);
+        homeToken.send(
+            SendTokenInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipient: user1,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 200000
+            }),
+            1 // tokenId
+        );
+
+        // Process the message to get the token on remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Owner pauses just the remote chain
+        vm.prank(owner);
+        homeToken.updateRemotePausedState(
+            UpdatePausedStateInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0
+            }),
+            true // pause state
+        );
+
+        // Process the pause message
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Token transfers should be blocked on remote
+        vm.prank(user1);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        remoteToken.transferFrom(user1, user2, 1);
+
+        // But home should still allow transfers for other tokens
+        vm.prank(user2);
+        homeToken.mint(user2, 2, "token2.json");
+
+        vm.prank(user2);
+        homeToken.transferFrom(user2, user1, 2); // Should succeed
+
+        // Verify the token was transferred on home
+        assertEq(homeToken.ownerOf(2), user1);
     }
 }
