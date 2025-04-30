@@ -25,12 +25,6 @@ interface IERC721TokenRemote is IERC721Transferrer {
     function getHomeTokenAddress() external view returns (address);
 
     /**
-     * @notice Returns the blockchain ID of the current chain
-     * @return The blockchain ID
-     */
-    function getBlockchainID() external view returns (bytes32);
-
-    /**
      * @notice Returns whether this contract has been registered with the home contract
      * @return Registration status
      */

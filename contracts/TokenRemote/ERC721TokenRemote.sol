@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC721TokenRemote} from "./interfaces/IERC721TokenRemote.sol";
 import {
     TransferrerMessage,
@@ -15,13 +14,13 @@ import {
     SendAndCallMessage,
     CallSucceeded,
     CallFailed,
-    ExtensionMessage
+    ExtensionMessage,
+    ExtensionMessageParams
 } from "../interfaces/IERC721Transferrer.sol";
 import {ERC721TokenTransferrer} from "../ERC721TokenTransferrer.sol";
 import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
-import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
@@ -42,15 +41,7 @@ import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
  *
  * The contract must be registered with its corresponding home contract before it can be used.
  */
-abstract contract ERC721TokenRemote is
-    IERC721TokenRemote,
-    ERC721TokenTransferrer,
-    ERC721,
-    TeleporterRegistryOwnableApp
-{
-    /// @notice The blockchain ID of the chain this contract is deployed on
-    bytes32 internal immutable _blockchainID;
-
+abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721TokenTransferrer, TeleporterRegistryOwnableApp {
     /// @notice The blockchain ID of the home chain where the original tokens exist
     bytes32 internal immutable _homeBlockchainID;
 
@@ -62,9 +53,6 @@ abstract contract ERC721TokenRemote is
 
     /// @notice Whether this contract has been registered with the home contract
     bool internal _isRegistered;
-
-    /// @notice The base URI for token metadata
-    string internal _baseURIStorage;
 
     /**
      * @notice Initializes the ERC721TokenRemote contract
@@ -82,13 +70,15 @@ abstract contract ERC721TokenRemote is
         address homeContractAddress_,
         address teleporterRegistryAddress,
         uint256 minTeleporterVersion
-    ) ERC721(name, symbol) TeleporterRegistryOwnableApp(teleporterRegistryAddress, msg.sender, minTeleporterVersion) {
+    )
+        ERC721TokenTransferrer(name, symbol, "")
+        TeleporterRegistryOwnableApp(teleporterRegistryAddress, msg.sender, minTeleporterVersion)
+    {
         require(homeChainId_ != bytes32(0), "ERC721TokenRemote: zero home blockchain ID");
         require(homeContractAddress_ != address(0), "ERC721TokenRemote: zero home contract address");
 
         _homeBlockchainID = homeChainId_;
         _homeContractAddress = homeContractAddress_;
-        _blockchainID = IWarpMessenger(0x0200000000000000000000000000000000000005).getBlockchainID();
 
         emit HomeChainRegistered(_homeBlockchainID, _homeContractAddress);
     }
@@ -107,14 +97,6 @@ abstract contract ERC721TokenRemote is
      */
     function getHomeTokenAddress() external view override returns (address) {
         return _homeContractAddress;
-    }
-
-    /**
-     * @notice Returns the blockchain ID of the current chain
-     * @return The blockchain ID
-     */
-    function getBlockchainID() external view override returns (bytes32) {
-        return _blockchainID;
     }
 
     /**
@@ -145,7 +127,7 @@ abstract contract ERC721TokenRemote is
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
             payload: abi.encode(
-                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, extensions: _getExtensionMessages(tokenId)})
+                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, extensions: new ExtensionMessage[](0)})
             )
         });
 
@@ -197,7 +179,7 @@ abstract contract ERC721TokenRemote is
             recipientPayload: input.recipientPayload,
             recipientGasLimit: input.recipientGasLimit,
             fallbackRecipient: input.fallbackRecipient,
-            extensions: _getExtensionMessages(tokenId)
+            extensions: new ExtensionMessage[](0)
         });
 
         TransferrerMessage memory message =
@@ -306,14 +288,6 @@ abstract contract ERC721TokenRemote is
             return;
         }
         SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
-    }
-
-    /**
-     * @notice Returns the base URI for token metadata
-     * @return The base URI string
-     */
-    function _baseURI() internal view virtual override returns (string memory) {
-        return _baseURIStorage;
     }
 
     /**

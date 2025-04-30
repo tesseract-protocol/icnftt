@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC721TokenHome} from "./interfaces/IERC721TokenHome.sol";
 import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
 import {
@@ -17,7 +16,8 @@ import {
     CallSucceeded,
     CallFailed,
     UpdateBaseURIInput,
-    ExtensionMessage
+    ExtensionMessage,
+    ExtensionMessageParams
 } from "../interfaces/IERC721Transferrer.sol";
 import {ERC721TokenTransferrer} from "../ERC721TokenTransferrer.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
@@ -26,7 +26,6 @@ import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/inte
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "forge-std/console.sol";
 /**
  * @title ERC721TokenHome
  * @dev A contract enabling cross-chain transfers of ERC721 tokens between Avalanche L1 networks.
@@ -44,15 +43,9 @@ import "forge-std/console.sol";
  * of tokens when they are transferred cross-chain.
  */
 
-abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, ERC721, TeleporterRegistryOwnableApp {
+abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, TeleporterRegistryOwnableApp {
     /// @notice Gas limit for updating base URI on remote chains
     uint256 public constant UPDATE_BASE_URI_GAS_LIMIT = 120000;
-
-    /// @notice The blockchain ID of the chain this contract is deployed on
-    bytes32 private immutable _blockchainID;
-
-    /// @notice The base URI for all token metadata
-    string private _baseURIStorage;
 
     /// @notice Mapping from blockchain ID to the contract address on that chain
     mapping(bytes32 => address) internal _remoteContracts;
@@ -77,18 +70,10 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
         string memory baseURI,
         address teleporterRegistryAddress,
         uint256 minTeleporterVersion
-    ) ERC721(name, symbol) TeleporterRegistryOwnableApp(teleporterRegistryAddress, msg.sender, minTeleporterVersion) {
-        _blockchainID = IWarpMessenger(0x0200000000000000000000000000000000000005).getBlockchainID();
-        _baseURIStorage = baseURI;
-    }
-
-    /**
-     * @notice Returns the blockchain ID of the current chain
-     * @return The blockchain ID
-     */
-    function getBlockchainID() external view override returns (bytes32) {
-        return _blockchainID;
-    }
+    )
+        ERC721TokenTransferrer(name, symbol, baseURI)
+        TeleporterRegistryOwnableApp(teleporterRegistryAddress, msg.sender, minTeleporterVersion)
+    {}
 
     /**
      * @notice Returns all blockchain IDs of registered remote chains
@@ -134,7 +119,13 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
             payload: abi.encode(
-                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, extensions: _getExtensionMessages(tokenId)})
+                SendTokenMessage({
+                    recipient: input.recipient,
+                    tokenId: tokenId,
+                    extensions: _getExtensionMessages(
+                        ExtensionMessageParams({tokenId: tokenId, messageType: TransferrerMessageType.SINGLE_HOP_SEND})
+                    )
+                })
             )
         });
         bytes32 messageID = _sendTeleporterMessage(
@@ -173,7 +164,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
             recipientPayload: input.recipientPayload,
             recipientGasLimit: input.recipientGasLimit,
             fallbackRecipient: input.fallbackRecipient,
-            extensions: _getExtensionMessages(tokenId)
+            extensions: _getExtensionMessages(
+                ExtensionMessageParams({tokenId: tokenId, messageType: TransferrerMessageType.SINGLE_HOP_CALL})
+            )
         });
 
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
@@ -386,14 +379,6 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, E
             return;
         }
         SafeERC20TransferFrom.safeTransferFrom(IERC20(feeTokenAddress), _msgSender(), feeAmount);
-    }
-
-    /**
-     * @notice Returns the base URI for token metadata
-     * @return The base URI string
-     */
-    function _baseURI() internal view virtual override returns (string memory) {
-        return _baseURIStorage;
     }
 
     function _validateReceiveToken(
