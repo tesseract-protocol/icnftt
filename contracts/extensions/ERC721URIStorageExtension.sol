@@ -5,16 +5,19 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IERC4906} from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import {ExtensionMessage} from "../interfaces/IERC721Transferrer.sol";
+import {ExtensionMessage, ExtensionMessageParams} from "../interfaces/IERC721Transferrer.sol";
 import {URIStorageExtensionMessage} from "./interfaces/IERC721URIStorageExtension.sol";
+import {ERC721Extension} from "./ERC721Extension.sol";
 /**
  * @dev ERC721 token with storage based token URI management.
  *
  * @notice This is a customized version of OpenZeppelin's ERC721URIStorage contract.
  */
 
-abstract contract ERC721URIStorageExtension is IERC4906, ERC721 {
+abstract contract ERC721URIStorageExtension is ERC721Extension, IERC4906, ERC721 {
     using Strings for uint256;
+
+    bytes4 internal constant URI_STORAGE_EXTENSION_ID = bytes4(0x785680e6);
 
     // Interface ID as defined in ERC-4906. This does not correspond to a traditional interface ID as ERC-4906 only
     // defines events and does not include any external function.
@@ -67,8 +70,8 @@ abstract contract ERC721URIStorageExtension is IERC4906, ERC721 {
 
     function _update(
         ExtensionMessage memory extension
-    ) internal virtual {
-        if (extension.key == ERC4906_INTERFACE_ID) {
+    ) internal virtual override {
+        if (extension.key == URI_STORAGE_EXTENSION_ID) {
             URIStorageExtensionMessage memory uriStorageHomeExtensionMessage =
                 abi.decode(extension.value, (URIStorageExtensionMessage));
             _setTokenURI(uriStorageHomeExtensionMessage.tokenId, uriStorageHomeExtensionMessage.uri);
@@ -76,10 +79,11 @@ abstract contract ERC721URIStorageExtension is IERC4906, ERC721 {
     }
 
     function _getMessage(
-        uint256 tokenId
-    ) internal view returns (ExtensionMessage memory) {
+        ExtensionMessageParams memory params
+    ) internal view virtual override returns (ExtensionMessage memory) {
         return ExtensionMessage(
-            ERC4906_INTERFACE_ID, abi.encode(URIStorageExtensionMessage({tokenId: tokenId, uri: _tokenURIs[tokenId]}))
+            URI_STORAGE_EXTENSION_ID,
+            abi.encode(URIStorageExtensionMessage({tokenId: params.tokenId, uri: _tokenURIs[params.tokenId]}))
         );
     }
 

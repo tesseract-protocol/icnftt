@@ -15,7 +15,7 @@ import {
 
 abstract contract ERC721PausableHomeExtension is ERC721PausableExtension, ERC721TokenHome {
     /// @notice Gas limit for updating pause state on remote chains
-    uint256 public constant UPDATE_PAUSE_STATE_GAS_LIMIT = 120000;
+    uint256 public constant UPDATE_PAUSE_STATE_GAS_LIMIT = 130_000;
 
     function _beforeTokenTransfer(address, uint256 tokenId) internal virtual override {
         if (_ownerOf(tokenId) != address(this)) {
@@ -116,7 +116,7 @@ abstract contract ERC721PausableHomeExtension is ERC721PausableExtension, ERC721
     ) internal {
         ExtensionMessage[] memory extensions = new ExtensionMessage[](1);
         extensions[0] = ExtensionMessage({
-            key: PAUSABLE_INTERFACE_ID,
+            key: PAUSABLE_EXTENSION_ID,
             value: abi.encode(PausableExtensionMessage({paused: pauseState}))
         });
 
@@ -135,17 +135,5 @@ abstract contract ERC721PausableHomeExtension is ERC721PausableExtension, ERC721
         );
 
         emit UpdateRemotePausedState(messageID, destinationBlockchainID, remoteContract, pauseState);
-    }
-
-    function _baseURI() internal view virtual override (ERC721, ERC721TokenTransferrer) returns (string memory) {
-        return super._baseURI();
-    }
-
-    function _update(
-        address to,
-        uint256 tokenId,
-        address auth
-    ) internal virtual override (ERC721, ERC721TokenTransferrer) returns (address) {
-        return super._update(to, tokenId, auth);
     }
 }

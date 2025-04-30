@@ -14,7 +14,8 @@ import {
     SendAndCallMessage,
     CallSucceeded,
     CallFailed,
-    ExtensionMessage
+    ExtensionMessage,
+    ExtensionMessageParams
 } from "../interfaces/IERC721Transferrer.sol";
 import {ERC721TokenTransferrer} from "../ERC721TokenTransferrer.sol";
 import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
@@ -126,7 +127,7 @@ abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721TokenTransferre
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
             payload: abi.encode(
-                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, extensions: _getExtensionMessages(tokenId)})
+                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, extensions: new ExtensionMessage[](0)})
             )
         });
 
@@ -178,7 +179,7 @@ abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721TokenTransferre
             recipientPayload: input.recipientPayload,
             recipientGasLimit: input.recipientGasLimit,
             fallbackRecipient: input.fallbackRecipient,
-            extensions: _getExtensionMessages(tokenId)
+            extensions: new ExtensionMessage[](0)
         });
 
         TransferrerMessage memory message =

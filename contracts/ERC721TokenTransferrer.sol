@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {IERC721Transferrer} from "./interfaces/IERC721Transferrer.sol";
+import {IERC721Transferrer, ExtensionMessageParams} from "./interfaces/IERC721Transferrer.sol";
 import {ExtensionMessage} from "./interfaces/IERC721Transferrer.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
@@ -28,7 +28,7 @@ abstract contract ERC721TokenTransferrer is ERC721, IERC721Transferrer {
     ) internal virtual;
 
     function _getExtensionMessages(
-        uint256 tokenId
+        ExtensionMessageParams memory params
     ) internal virtual returns (ExtensionMessage[] memory);
 
     function _beforeTokenTransfer(address to, uint256 tokenId) internal virtual {}

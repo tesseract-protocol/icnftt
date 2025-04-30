@@ -16,7 +16,8 @@ import {
     CallSucceeded,
     CallFailed,
     UpdateBaseURIInput,
-    ExtensionMessage
+    ExtensionMessage,
+    ExtensionMessageParams
 } from "../interfaces/IERC721Transferrer.sol";
 import {ERC721TokenTransferrer} from "../ERC721TokenTransferrer.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
@@ -25,7 +26,6 @@ import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/inte
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "forge-std/console.sol";
 /**
  * @title ERC721TokenHome
  * @dev A contract enabling cross-chain transfers of ERC721 tokens between Avalanche L1 networks.
@@ -119,7 +119,13 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
             payload: abi.encode(
-                SendTokenMessage({recipient: input.recipient, tokenId: tokenId, extensions: _getExtensionMessages(tokenId)})
+                SendTokenMessage({
+                    recipient: input.recipient,
+                    tokenId: tokenId,
+                    extensions: _getExtensionMessages(
+                        ExtensionMessageParams({tokenId: tokenId, messageType: TransferrerMessageType.SINGLE_HOP_SEND})
+                    )
+                })
             )
         });
         bytes32 messageID = _sendTeleporterMessage(
@@ -158,7 +164,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             recipientPayload: input.recipientPayload,
             recipientGasLimit: input.recipientGasLimit,
             fallbackRecipient: input.fallbackRecipient,
-            extensions: _getExtensionMessages(tokenId)
+            extensions: _getExtensionMessages(
+                ExtensionMessageParams({tokenId: tokenId, messageType: TransferrerMessageType.SINGLE_HOP_CALL})
+            )
         });
 
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);

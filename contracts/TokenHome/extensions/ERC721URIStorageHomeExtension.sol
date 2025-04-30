@@ -94,7 +94,7 @@ abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ER
     ) internal {
         ExtensionMessage[] memory extensions = new ExtensionMessage[](1);
         extensions[0] = ExtensionMessage({
-            key: ERC4906_INTERFACE_ID,
+            key: URI_STORAGE_EXTENSION_ID,
             value: abi.encode(URIStorageExtensionMessage({tokenId: tokenId, uri: uri}))
         });
         TransferrerMessage memory message =

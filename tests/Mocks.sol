@@ -139,7 +139,7 @@ contract MockTeleporterMessenger {
         return messageID;
     }
 
-    // Deliver the next pending message
+    // Deliver the next pending message (FIFO - first in, first out)
     function deliverNextMessage(bytes32 destinationChainID, address destinationAddress) external returns (bool) {
         PendingMessage[] storage messages = _pendingMessages[destinationChainID][destinationAddress];
         require(messages.length > 0, "No pending messages");
@@ -151,6 +151,55 @@ contract MockTeleporterMessenger {
         for (uint i = 0; i < messages.length - 1; i++) {
             messages[i] = messages[i + 1];
         }
+        messages.pop();
+
+        // Determine source chain based on message direction
+        bytes32 sourceChainID = (destinationChainID == HOME_CHAIN_ID) ? REMOTE_CHAIN_ID : HOME_CHAIN_ID;
+
+        // Create message ID for the event
+        bytes32 messageID = keccak256(abi.encodePacked(pendingMsg.nonce, sourceChainID, destinationChainID));
+
+        // Create TeleporterMessage for the event
+        TeleporterMessage memory teleporterMessage = TeleporterMessage({
+            messageNonce: pendingMsg.nonce,
+            originSenderAddress: pendingMsg.sender,
+            destinationBlockchainID: destinationChainID,
+            destinationAddress: destinationAddress,
+            requiredGasLimit: 200000, // Default value
+            allowedRelayerAddresses: new address[](0),
+            receipts: new TeleporterMessageReceipt[](0),
+            message: pendingMsg.message
+        });
+
+        // Emit receive event
+        emit ReceiveCrossChainMessage(
+            messageID,
+            sourceChainID,
+            msg.sender, // deliverer
+            msg.sender, // reward redeemer
+            teleporterMessage
+        );
+
+        // Call the destination contract
+        (bool success,) = destinationAddress.call(
+            abi.encodeWithSignature(
+                "receiveTeleporterMessage(bytes32,address,bytes)", sourceChainID, pendingMsg.sender, pendingMsg.message
+            )
+        );
+
+        return success;
+    }
+
+    // Deliver the latest pending message (LIFO - last in, first out)
+    function deliverLatestMessage(bytes32 destinationChainID, address destinationAddress) external returns (bool) {
+        PendingMessage[] storage messages = _pendingMessages[destinationChainID][destinationAddress];
+        require(messages.length > 0, "No pending messages");
+
+        // Get the newest message (last in queue)
+        uint256 lastIndex = messages.length - 1;
+        PendingMessage memory pendingMsg = messages[lastIndex];
+
+        // Remove it (pop the last element)
         messages.pop();
 
         // Determine source chain based on message direction

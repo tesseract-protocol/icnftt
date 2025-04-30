@@ -116,6 +116,11 @@ struct TransferrerMessage {
     bytes payload;
 }
 
+struct ExtensionMessageParams {
+    uint256 tokenId;
+    TransferrerMessageType messageType;
+}
+
 /**
  * @dev Emitted when a token is sent to another chain.
  */
