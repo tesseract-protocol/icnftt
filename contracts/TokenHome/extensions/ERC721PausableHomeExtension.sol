@@ -13,6 +13,23 @@ import {
     UpdateRemotePausedState
 } from "../../extensions/interfaces/IERC721PausableExtension.sol";
 
+/**
+ * @title ERC721PausableHomeExtension
+ * @dev An extension of ERC721TokenHome that adds pausable functionality for NFT transfers.
+ *
+ * This contract provides the ability to pause token transfers both locally and across
+ * registered remote chains. When paused, token transfers are prevented (except when
+ * the token is being held by this contract itself).
+ *
+ * Key features:
+ * 1. Pause/unpause token transfers on the home chain
+ * 2. Propagate pause states to all registered remote chains
+ * 3. Selectively update pause state on specific remote chains
+ * 4. Allow tokens in transit (owned by this contract) to complete their journey even when paused
+ *
+ * @dev This extension should be inherited instead of ERC721TokenHome if pausable
+ * functionality is needed for your token contract
+ */
 abstract contract ERC721PausableHomeExtension is ERC721PausableExtension, ERC721TokenHome {
     /// @notice Gas limit for updating pause state on remote chains
     uint256 public constant UPDATE_PAUSE_STATE_GAS_LIMIT = 130_000;

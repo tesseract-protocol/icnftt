@@ -8,11 +8,12 @@ import "../contracts/TokenHome/extensions/ERC721URIStorageHomeExtension.sol";
 import "../contracts/TokenHome/extensions/ERC721PausableHomeExtension.sol";
 import "../contracts/TokenRemote/ERC721TokenRemote.sol";
 import "../contracts/TokenRemote/extensions/ERC721PausableRemoteExtension.sol";
+import "../contracts/TokenRemote/extensions/ERC721URIStorageRemoteExtension.sol";
 import {SendTokenInput, SendAndCallInput} from "../contracts/interfaces/IERC721Transferrer.sol";
 import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger, MockERC721Receiver} from "./Mocks.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExtension, ERC721PausableHomeExtension {
+contract ERC721TokenHomePublicMint is ERC721URIStorageHomeExtension, ERC721PausableHomeExtension {
     constructor(
         string memory name,
         string memory symbol,
@@ -91,7 +92,7 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome, ERC721URIStorageHomeExten
     ) internal override (ERC721URIStorageExtension, ERC721PausableExtension) {}
 }
 
-contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension, ERC721PausableRemoteExtension {
+contract TokenRemote is ERC721URIStorageRemoteExtension, ERC721PausableRemoteExtension {
     constructor(
         string memory name,
         string memory symbol,
@@ -121,19 +122,24 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension, ERC721Paus
         return extensionMessages;
     }
 
-    function _baseURI() internal view override (ERC721, ERC721TokenTransferrer) returns (string memory) {
+    function _baseURI()
+        internal
+        view
+        override (ERC721URIStorageRemoteExtension, ERC721TokenTransferrer)
+        returns (string memory)
+    {
         return super._baseURI();
     }
 
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override (ERC721URIStorageExtension, ERC721) returns (bool) {
+    ) public view override (ERC721URIStorageRemoteExtension, ERC721) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
     function tokenURI(
         uint256 tokenId
-    ) public view override (ERC721URIStorageExtension, ERC721) returns (string memory) {
+    ) public view override (ERC721URIStorageRemoteExtension, ERC721) returns (string memory) {
         return super.tokenURI(tokenId);
     }
 
@@ -141,11 +147,7 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorageExtension, ERC721Paus
         address to,
         uint256 tokenId,
         address auth
-    )
-        internal
-        override (ERC721TokenTransferrer, ERC721URIStorageExtension, ERC721PausableRemoteExtension)
-        returns (address)
-    {
+    ) internal override (ERC721URIStorageRemoteExtension, ERC721PausableRemoteExtension) returns (address) {
         return super._update(to, tokenId, auth);
     }
 

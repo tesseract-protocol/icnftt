@@ -13,6 +13,23 @@ import {
     UpdateRemoteTokenURI
 } from "../../extensions/interfaces/IERC721URIStorageExtension.sol";
 
+/**
+ * @title ERC721URIStorageHomeExtension
+ * @dev An extension of ERC721TokenHome that adds enhanced URI storage and management functionality for NFTs.
+ *
+ * This contract enables per-token URI management with cross-chain synchronization capabilities,
+ * allowing token metadata to be consistently maintained across all chains where the tokens
+ * might travel.
+ *
+ * Key features:
+ * 1. Store and retrieve individual token URIs
+ * 2. Update token URIs on the home chain
+ * 3. Propagate URI updates to remote chains where tokens currently exist
+ * 4. Selectively update URIs on specific remote chains
+ *
+ * @dev This extension should be inherited instead of ERC721TokenHome if enhanced
+ * token URI management functionality is needed for your token contract
+ */
 abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ERC721TokenHome {
     /// @notice Gas limit for updating token URI on remote chains
     uint256 public constant UPDATE_TOKEN_URI_GAS_LIMIT = 120000;
