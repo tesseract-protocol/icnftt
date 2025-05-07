@@ -27,23 +27,11 @@ contract ERC721TokenHomePublicMint is ERC721URIStorageHomeExtension, ERC721Pausa
         _setTokenURI(tokenId, _tokenURI);
     }
 
-    function _updateExtensions(
-        ExtensionMessage[] memory extensions
-    ) internal override (ERC721TokenTransferrer) {
-        for (uint256 i = 0; i < extensions.length; i++) {
-            if (extensions[i].key == ERC721URIStorageExtension.URI_STORAGE_EXTENSION_ID) {
-                ERC721URIStorageExtension._update(extensions[i]);
-            } else if (extensions[i].key == ERC721PausableExtension.PAUSABLE_EXTENSION_ID) {
-                ERC721PausableExtension._update(extensions[i]);
-            }
-        }
-    }
-
     function _getExtensionMessages(
         ExtensionMessageParams memory params
     ) internal view override returns (ExtensionMessage[] memory) {
         ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](1);
-        extensionMessages[0] = ERC721URIStorageExtension._getMessage(params);
+        extensionMessages[0] = ERC721URIStorageHomeExtension._getMessage(params);
         return extensionMessages;
     }
 
@@ -85,11 +73,12 @@ contract ERC721TokenHomePublicMint is ERC721URIStorageHomeExtension, ERC721Pausa
 
     function _getMessage(
         ExtensionMessageParams memory params
-    ) internal view override (ERC721URIStorageExtension, ERC721PausableExtension) returns (ExtensionMessage memory) {}
-
-    function _update(
-        ExtensionMessage memory extension
-    ) internal override (ERC721URIStorageExtension, ERC721PausableExtension) {}
+    )
+        internal
+        view
+        override (ERC721URIStorageHomeExtension, ERC721PausableHomeExtension)
+        returns (ExtensionMessage memory)
+    {}
 }
 
 contract TokenRemote is ERC721URIStorageRemoteExtension, ERC721PausableRemoteExtension {
@@ -107,19 +96,11 @@ contract TokenRemote is ERC721URIStorageRemoteExtension, ERC721PausableRemoteExt
     ) internal override {
         for (uint256 i = 0; i < extensions.length; i++) {
             if (extensions[i].key == ERC721URIStorageExtension.URI_STORAGE_EXTENSION_ID) {
-                ERC721URIStorageExtension._update(extensions[i]);
+                ERC721URIStorageRemoteExtension._update(extensions[i]);
             } else if (extensions[i].key == ERC721PausableExtension.PAUSABLE_EXTENSION_ID) {
-                ERC721PausableExtension._update(extensions[i]);
+                ERC721PausableRemoteExtension._update(extensions[i]);
             }
         }
-    }
-
-    function _getExtensionMessages(
-        ExtensionMessageParams memory params
-    ) internal view override returns (ExtensionMessage[] memory) {
-        ExtensionMessage[] memory extensionMessages = new ExtensionMessage[](1);
-        extensionMessages[0] = ERC721URIStorageExtension._getMessage(params);
-        return extensionMessages;
     }
 
     function _baseURI()
@@ -158,13 +139,9 @@ contract TokenRemote is ERC721URIStorageRemoteExtension, ERC721PausableRemoteExt
         super._beforeTokenTransfer(msg.sender, tokenId);
     }
 
-    function _getMessage(
-        ExtensionMessageParams memory params
-    ) internal view override (ERC721URIStorageExtension, ERC721PausableExtension) returns (ExtensionMessage memory) {}
-
     function _update(
         ExtensionMessage memory extension
-    ) internal override (ERC721URIStorageExtension, ERC721PausableExtension) {}
+    ) internal override (ERC721URIStorageRemoteExtension, ERC721PausableRemoteExtension) {}
 }
 
 contract ICNFTT_Test is Test {

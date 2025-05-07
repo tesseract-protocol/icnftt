@@ -2,10 +2,11 @@
 pragma solidity 0.8.25;
 
 import {ERC721URIStorageExtension} from "../../extensions/ERC721URIStorageExtension.sol";
-import {ERC721TokenRemote} from "../ERC721TokenRemote.sol";
 import {ERC721TokenTransferrer} from "../../ERC721TokenTransferrer.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-
+import {ERC721RemoteExtension} from "./ERC721RemoteExtension.sol";
+import {ExtensionMessage} from "../../interfaces/IERC721Transferrer.sol";
+import {URIStorageExtensionMessage} from "../../extensions/interfaces/IERC721URIStorageExtension.sol";
 /**
  * @title ERC721URIStorageRemoteExtension
  * @dev An extension of ERC721TokenRemote that adds enhanced URI storage for NFTs on remote chains.
@@ -23,7 +24,8 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
  * @dev This extension should be inherited instead of ERC721TokenRemote if enhanced
  * token URI management functionality is needed for your remote token contract
  */
-abstract contract ERC721URIStorageRemoteExtension is ERC721TokenRemote, ERC721URIStorageExtension {
+
+abstract contract ERC721URIStorageRemoteExtension is ERC721URIStorageExtension, ERC721RemoteExtension {
     function _baseURI() internal view virtual override (ERC721, ERC721TokenTransferrer) returns (string memory) {
         return super._baseURI();
     }
@@ -46,5 +48,15 @@ abstract contract ERC721URIStorageRemoteExtension is ERC721TokenRemote, ERC721UR
         uint256 tokenId
     ) public view virtual override (ERC721URIStorageExtension, ERC721) returns (string memory) {
         return super.tokenURI(tokenId);
+    }
+
+    function _update(
+        ExtensionMessage memory extension
+    ) internal virtual override {
+        if (extension.key == URI_STORAGE_EXTENSION_ID) {
+            URIStorageExtensionMessage memory uriStorageHomeExtensionMessage =
+                abi.decode(extension.value, (URIStorageExtensionMessage));
+            _setTokenURI(uriStorageHomeExtensionMessage.tokenId, uriStorageHomeExtensionMessage.uri);
+        }
     }
 }

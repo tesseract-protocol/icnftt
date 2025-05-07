@@ -19,6 +19,15 @@ interface IERC721TokenHome is IERC721Transferrer {
     function getRegisteredChains() external view returns (bytes32[] memory);
 
     /**
+     * @notice Returns the blockchain ID of a registered remote chain
+     * @param index The index of the registered chain
+     * @return The blockchain ID of the registered chain
+     */
+    function getRegisteredChain(
+        uint256 index
+    ) external view returns (bytes32);
+
+    /**
      * @notice Returns the number of registered remote chains
      * @return Number of registered chains
      */

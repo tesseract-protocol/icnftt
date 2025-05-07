@@ -57,25 +57,6 @@ abstract contract ERC721TokenTransferrer is ERC721, IERC721Transferrer {
     }
 
     /**
-     * @notice Updates contract extensions based on received extension messages
-     * @dev Must be implemented by derived contracts to update extension-specific state
-     * @param extensions Array of extension messages to process
-     */
-    function _updateExtensions(
-        ExtensionMessage[] memory extensions
-    ) internal virtual;
-
-    /**
-     * @notice Retrieves extension messages based on provided parameters
-     * @dev Must be implemented by derived contracts to create extension messages
-     * @param params Parameters for creating extension messages
-     * @return Array of extension messages
-     */
-    function _getExtensionMessages(
-        ExtensionMessageParams memory params
-    ) internal virtual returns (ExtensionMessage[] memory);
-
-    /**
      * @notice Hook that is called before token transfers
      * @dev Can be overridden by derived contracts to implement custom behavior
      * @param to The recipient address

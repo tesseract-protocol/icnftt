@@ -84,6 +84,17 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
     }
 
     /**
+     * @notice Returns the blockchain ID of a registered remote chain
+     * @param index The index of the registered chain
+     * @return The blockchain ID of the registered chain
+     */
+    function getRegisteredChain(
+        uint256 index
+    ) external view override returns (bytes32) {
+        return _registeredChains[index];
+    }
+
+    /**
      * @notice Returns the number of registered remote chains
      * @return Number of registered chains
      */
@@ -187,6 +198,16 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
 
         emit TokenAndCallSent(messageID, msg.sender, tokenId);
     }
+
+    /**
+     * @notice Retrieves extension messages based on provided parameters
+     * @dev Must be implemented by derived contracts to create extension messages
+     * @param params Parameters for creating extension messages
+     * @return Array of extension messages
+     */
+    function _getExtensionMessages(
+        ExtensionMessageParams memory params
+    ) internal virtual returns (ExtensionMessage[] memory);
 
     /**
      * @notice Updates the base URI for all tokens and optionally updates it on remote chains
@@ -416,10 +437,6 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenId);
             _tokenLocation[sendAndCallMessage.tokenId] = bytes32(0);
             _handleSendAndCall(sendAndCallMessage, sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenId);
-        } else if (transferrerMessage.messageType == TransferrerMessageType.UPDATE_EXTENSIONS) {
-            ExtensionMessage[] memory extensions = abi.decode(transferrerMessage.payload, (ExtensionMessage[]));
-            require(originSenderAddress == _remoteContracts[sourceBlockchainID], "ERC721TokenHome: invalid sender");
-            _updateExtensions(extensions);
         }
     }
 }

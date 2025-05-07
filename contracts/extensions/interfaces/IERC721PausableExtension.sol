@@ -1,4 +1,3 @@
-// contracts/extensions/interfaces/IERC721PausableExtension.sol
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
@@ -21,14 +20,3 @@ struct UpdatePausedStateInput {
 struct PausableExtensionMessage {
     bool paused;
 }
-
-/**
- * @dev Emitted when a request to update the paused state on a remote chain is sent
- * @param teleporterMessageID The ID of the Teleporter message
- * @param destinationBlockchainID The blockchain ID of the destination chain
- * @param remote The address of the contract on the remote chain
- * @param paused The new paused state
- */
-event UpdateRemotePausedState(
-    bytes32 indexed teleporterMessageID, bytes32 indexed destinationBlockchainID, address indexed remote, bool paused
-);

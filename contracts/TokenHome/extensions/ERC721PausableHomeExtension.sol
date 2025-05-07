@@ -3,16 +3,18 @@ pragma solidity 0.8.25;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721PausableExtension} from "../../extensions/ERC721PausableExtension.sol";
-import {ERC721TokenHome} from "../ERC721TokenHome.sol";
 import {ERC721TokenTransferrer} from "../../ERC721TokenTransferrer.sol";
-import {TransferrerMessage, TransferrerMessageType, ExtensionMessage} from "../../interfaces/IERC721Transferrer.sol";
+import {
+    TransferrerMessage,
+    TransferrerMessageType,
+    ExtensionMessage,
+    ExtensionMessageParams
+} from "../../interfaces/IERC721Transferrer.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {
-    PausableExtensionMessage,
-    UpdatePausedStateInput,
-    UpdateRemotePausedState
+    PausableExtensionMessage, UpdatePausedStateInput
 } from "../../extensions/interfaces/IERC721PausableExtension.sol";
-
+import {ERC721HomeExtension} from "./ERC721HomeExtension.sol";
 /**
  * @title ERC721PausableHomeExtension
  * @dev An extension of ERC721TokenHome that adds pausable functionality for NFT transfers.
@@ -30,9 +32,24 @@ import {
  * @dev This extension should be inherited instead of ERC721TokenHome if pausable
  * functionality is needed for your token contract
  */
-abstract contract ERC721PausableHomeExtension is ERC721PausableExtension, ERC721TokenHome {
+
+abstract contract ERC721PausableHomeExtension is ERC721PausableExtension, ERC721HomeExtension {
     /// @notice Gas limit for updating pause state on remote chains
     uint256 public constant UPDATE_PAUSE_STATE_GAS_LIMIT = 130_000;
+
+    /**
+     * @dev Emitted when a request to update the paused state on a remote chain is sent
+     * @param teleporterMessageID The ID of the Teleporter message
+     * @param destinationBlockchainID The blockchain ID of the destination chain
+     * @param remote The address of the contract on the remote chain
+     * @param paused The new paused state
+     */
+    event UpdateRemotePausedState(
+        bytes32 indexed teleporterMessageID,
+        bytes32 indexed destinationBlockchainID,
+        address indexed remote,
+        bool paused
+    );
 
     function _beforeTokenTransfer(address, uint256 tokenId) internal virtual override {
         if (_ownerOf(tokenId) != address(this)) {
@@ -117,6 +134,13 @@ abstract contract ERC721PausableHomeExtension is ERC721PausableExtension, ERC721
             _updateRemotePausedState(remoteBlockchainID, remoteContract, false, feeInfo);
         }
     }
+    /**
+     * @dev Gets the extension message for the current pause state
+     */
+
+    function _getMessage(
+        ExtensionMessageParams memory
+    ) internal view virtual override returns (ExtensionMessage memory) {}
 
     /**
      * @notice Internal function to update the pause state on a remote chain

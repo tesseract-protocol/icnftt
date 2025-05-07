@@ -239,6 +239,15 @@ abstract contract ERC721TokenRemote is IERC721TokenRemote, ERC721TokenTransferre
     }
 
     /**
+     * @notice Updates contract extensions based on received extension messages
+     * @dev Must be implemented by derived contracts to update extension-specific state
+     * @param extensions Array of extension messages to process
+     */
+    function _updateExtensions(
+        ExtensionMessage[] memory extensions
+    ) internal virtual;
+
+    /**
      * @notice Registers this contract with the home contract
      * @dev Sends a registration message to the home contract
      * @param feeInfo Information about the fee to pay for the cross-chain message
