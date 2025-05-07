@@ -3,16 +3,12 @@ pragma solidity 0.8.25;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721TokenTransferrer} from "../../ERC721TokenTransferrer.sol";
-import {ERC721TokenHome} from "../ERC721TokenHome.sol";
 import {ERC721URIStorageExtension} from "../../extensions/ERC721URIStorageExtension.sol";
 import {TransferrerMessage, TransferrerMessageType, ExtensionMessage} from "../../interfaces/IERC721Transferrer.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
-import {
-    URIStorageExtensionMessage,
-    UpdateURIInput,
-    UpdateRemoteTokenURI
-} from "../../extensions/interfaces/IERC721URIStorageExtension.sol";
-
+import {URIStorageExtensionMessage, UpdateURIInput} from "../../extensions/interfaces/IERC721URIStorageExtension.sol";
+import {ERC721HomeExtension} from "./ERC721HomeExtension.sol";
+import {ExtensionMessageParams} from "../../interfaces/IERC721Transferrer.sol";
 /**
  * @title ERC721URIStorageHomeExtension
  * @dev An extension of ERC721TokenHome that adds enhanced URI storage and management functionality for NFTs.
@@ -30,9 +26,26 @@ import {
  * @dev This extension should be inherited instead of ERC721TokenHome if enhanced
  * token URI management functionality is needed for your token contract
  */
-abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ERC721TokenHome {
+
+abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ERC721HomeExtension {
     /// @notice Gas limit for updating token URI on remote chains
     uint256 public constant UPDATE_TOKEN_URI_GAS_LIMIT = 120000;
+
+    /**
+     * @dev Emitted when a request to update a specific token URI on a remote chain is sent
+     * @param teleporterMessageID The ID of the Teleporter message
+     * @param destinationBlockchainID The blockchain ID of the destination chain
+     * @param remote The address of the contract on the remote chain
+     * @param tokenId The ID of the token
+     * @param uri The new token URI
+     */
+    event UpdateRemoteTokenURI(
+        bytes32 indexed teleporterMessageID,
+        bytes32 indexed destinationBlockchainID,
+        address indexed remote,
+        uint256 tokenId,
+        string uri
+    );
 
     function _baseURI() internal view virtual override (ERC721, ERC721TokenTransferrer) returns (string memory) {
         return super._baseURI();
@@ -127,6 +140,18 @@ abstract contract ERC721URIStorageHomeExtension is ERC721URIStorageExtension, ER
             })
         );
         emit UpdateRemoteTokenURI(messageID, destinationBlockchainID, remoteContract, tokenId, uri);
+    }
+
+    /**
+     * @dev Gets the extension message for the current token URI
+     */
+    function _getMessage(
+        ExtensionMessageParams memory params
+    ) internal view virtual override returns (ExtensionMessage memory) {
+        return ExtensionMessage(
+            URI_STORAGE_EXTENSION_ID,
+            abi.encode(URIStorageExtensionMessage({tokenId: params.tokenId, uri: _tokenURIs[params.tokenId]}))
+        );
     }
 
     function _update(

@@ -27,3 +27,4 @@ coverage.json
 *.swo
 
 reference
+/.VSCodeCounter

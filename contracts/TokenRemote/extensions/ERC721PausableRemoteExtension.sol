@@ -3,9 +3,10 @@ pragma solidity 0.8.25;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721PausableExtension} from "../../extensions/ERC721PausableExtension.sol";
-import {ERC721TokenRemote} from "../ERC721TokenRemote.sol";
 import {ERC721TokenTransferrer} from "../../ERC721TokenTransferrer.sol";
-
+import {ERC721RemoteExtension} from "./ERC721RemoteExtension.sol";
+import {ExtensionMessage} from "../../interfaces/IERC721Transferrer.sol";
+import {PausableExtensionMessage} from "../../extensions/interfaces/IERC721PausableExtension.sol";
 /**
  * @title ERC721PausableRemoteExtension
  * @dev An extension of ERC721TokenRemote that adds pausable functionality for NFTs on remote chains.
@@ -22,7 +23,8 @@ import {ERC721TokenTransferrer} from "../../ERC721TokenTransferrer.sol";
  * @dev This extension should be inherited instead of ERC721TokenRemote if pausable
  * functionality is needed for your remote token contract
  */
-abstract contract ERC721PausableRemoteExtension is ERC721PausableExtension, ERC721TokenRemote {
+
+abstract contract ERC721PausableRemoteExtension is ERC721PausableExtension, ERC721RemoteExtension {
     function _beforeTokenTransfer(address, uint256 tokenId) internal virtual override {
         if (_ownerOf(tokenId) != address(0)) {
             _requireNotPaused();
@@ -35,5 +37,23 @@ abstract contract ERC721PausableRemoteExtension is ERC721PausableExtension, ERC7
         address auth
     ) internal virtual override (ERC721TokenTransferrer) returns (address) {
         return super._update(to, tokenId, auth);
+    }
+
+    /**
+     * @dev Updates the extension state based on the message
+     */
+    function _update(
+        ExtensionMessage memory extension
+    ) internal virtual override {
+        if (extension.key == PAUSABLE_EXTENSION_ID) {
+            PausableExtensionMessage memory pausableExtensionMessage =
+                abi.decode(extension.value, (PausableExtensionMessage));
+
+            if (pausableExtensionMessage.paused && !paused()) {
+                _pause();
+            } else if (!pausableExtensionMessage.paused && paused()) {
+                _unpause();
+            }
+        }
     }
 }
