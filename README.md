@@ -10,9 +10,11 @@ This project is in early development and is not yet ready for production use. Th
 
 ## Background
 
-Avalanche Interchain Messaging (ICM) is a protocol that enables asynchronous cross-chain messaging between EVM L1s within Avalanche. Teleporter is a smart contract interface that implements ICM, providing features like replay protection, retry mechanisms, and relayer incentivization for cross-chain communication. [ICM Docs]()
+Avalanche Interchain Messaging (ICM) is a protocol that enables asynchronous cross-chain messaging between EVM L1s within Avalanche. Teleporter is a smart contract interface that implements ICM, providing features like replay protection, retry mechanisms, and relayer incentivization for cross-chain communication. 
+  * [ICM Docs](https://build.avax.network/docs/cross-chain/avalanche-warp-messaging/overview)
 
-Avalanche Interchain Token Transfer (ICTT) is a standard that enables tokens to be transferred between L1s, with each transfer consisting of locking the asset as collateral on the home L1 and minting a representation of the asset on the remote L1. [ICTT Docs]()
+Avalanche Interchain Token Transfer (ICTT) is a standard that enables tokens to be transferred between L1s, with each transfer consisting of locking the asset as collateral on the home L1 and minting a representation of the asset on the remote L1.
+  * [ICTT Docs](https://build.avax.network/docs/cross-chain/interchain-token-transfer/overview)
 
 For NFTs, we introduce Avalanche Interchain NFT Transfer (ICNFTT). This will enable seamless transfer of digital assets between Avalanche L1s while preserving their unique characteristics, ownership history, and associated metadata in order to create a unified NFT ecosystem across Avalanche L1s, making it easier for users to transfer NFTs across different chains and use them in their favorite apps and marketplaces.
 
