@@ -2,7 +2,6 @@
 pragma solidity 0.8.25;
 
 import {IERC721Transferrer, ExtensionMessageParams} from "./interfaces/IERC721Transferrer.sol";
-import {ExtensionMessage} from "./interfaces/IERC721Transferrer.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 

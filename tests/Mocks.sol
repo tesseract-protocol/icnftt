@@ -7,8 +7,8 @@ import {
     TeleporterMessage,
     TeleporterMessageReceipt
 } from "@teleporter/ITeleporterMessenger.sol";
-import {TransferrerMessage, TransferrerMessageType} from "../contracts/interfaces/IERC721Transferrer.sol";
-import {IERC721SendAndCallReceiver} from "../contracts/interfaces/IERC721SendAndCallReceiver.sol";
+import {TransferrerMessage, TransferrerMessageType} from "../contracts/standalone/interfaces/IERC721Transferrer.sol";
+import {IERC721SendAndCallReceiver} from "../contracts/standalone/interfaces/IERC721SendAndCallReceiver.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 // Mock of IWarpMessenger to return chain IDs
