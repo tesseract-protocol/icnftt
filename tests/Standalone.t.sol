@@ -3,14 +3,14 @@ pragma solidity 0.8.25;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../contracts/TokenHome/ERC721TokenHome.sol";
-import "../contracts/TokenHome/extensions/ERC721URIStorageHomeExtension.sol";
-import "../contracts/TokenHome/extensions/ERC721PausableHomeExtension.sol";
-import "../contracts/TokenRemote/ERC721TokenRemote.sol";
-import "../contracts/TokenRemote/extensions/ERC721PausableRemoteExtension.sol";
-import "../contracts/TokenRemote/extensions/ERC721URIStorageRemoteExtension.sol";
-import {SendTokenInput, SendAndCallInput} from "../contracts/interfaces/IERC721Transferrer.sol";
-import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger, MockERC721Receiver} from "./Mocks.sol";
+import "../contracts/standalone/TokenHome/ERC721TokenHome.sol";
+import "../contracts/standalone/TokenHome/extensions/ERC721URIStorageHomeExtension.sol";
+import "../contracts/standalone/TokenHome/extensions/ERC721PausableHomeExtension.sol";
+import "../contracts/standalone/TokenRemote/ERC721TokenRemote.sol";
+import "../contracts/standalone/TokenRemote/extensions/ERC721PausableRemoteExtension.sol";
+import "../contracts/standalone/TokenRemote/extensions/ERC721URIStorageRemoteExtension.sol";
+import {SendTokenInput, SendAndCallInput} from "../contracts/standalone/interfaces/IERC721Transferrer.sol";
+import {MockTeleporterMessenger, MockTeleporterRegistry, MockWarpMessenger} from "./Mocks.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract ERC721TokenHomePublicMint is ERC721URIStorageHomeExtension, ERC721PausableHomeExtension {
@@ -144,7 +144,54 @@ contract TokenRemote is ERC721URIStorageRemoteExtension, ERC721PausableRemoteExt
     ) internal override (ERC721URIStorageRemoteExtension, ERC721PausableRemoteExtension) {}
 }
 
-contract ICNFTT_Test is Test {
+contract MockERC721Receiver is IERC721SendAndCallReceiver {
+    // Records of received tokens
+    struct ReceivedToken {
+        bytes32 sourceBlockchainID;
+        address originTokenTransferrerAddress;
+        address originSenderAddress;
+        address tokenAddress;
+        uint256 tokenId;
+        bytes payload;
+    }
+
+    // Last received token details
+    ReceivedToken public lastReceivedToken;
+
+    // Count of received tokens
+    uint256 public receiveCount;
+
+    // Record of the payload
+    bytes public lastPayload;
+
+    function receiveToken(
+        bytes32 sourceBlockchainID,
+        address originTokenTransferrerAddress,
+        address originSenderAddress,
+        address tokenAddress,
+        uint256 tokenId,
+        bytes calldata payload
+    ) external override {
+        if (payload.length > 0 && payload[0] == 0x01) {
+            ERC721(tokenAddress).transferFrom(tokenAddress, address(this), tokenId);
+        }
+
+        // Record token details
+        lastReceivedToken = ReceivedToken({
+            sourceBlockchainID: sourceBlockchainID,
+            originTokenTransferrerAddress: originTokenTransferrerAddress,
+            originSenderAddress: originSenderAddress,
+            tokenAddress: tokenAddress,
+            tokenId: tokenId,
+            payload: payload
+        });
+
+        // Store the payload for inspection
+        lastPayload = payload;
+    }
+}
+
+contract Standalone_Test is Test {
     // Contracts under test
     ERC721TokenHomePublicMint public homeToken;
     TokenRemote public remoteToken;

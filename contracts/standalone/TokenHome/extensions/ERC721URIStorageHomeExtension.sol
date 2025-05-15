@@ -4,11 +4,15 @@ pragma solidity 0.8.25;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721TokenTransferrer} from "../../ERC721TokenTransferrer.sol";
 import {ERC721URIStorageExtension} from "../../extensions/ERC721URIStorageExtension.sol";
-import {TransferrerMessage, TransferrerMessageType, ExtensionMessage} from "../../interfaces/IERC721Transferrer.sol";
+import {
+    TransferrerMessage,
+    TransferrerMessageType,
+    ExtensionMessage,
+    ExtensionMessageParams
+} from "../../interfaces/IERC721Transferrer.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
 import {URIStorageExtensionMessage, UpdateURIInput} from "../../extensions/interfaces/IERC721URIStorageExtension.sol";
 import {ERC721HomeExtension} from "./ERC721HomeExtension.sol";
-import {ExtensionMessageParams} from "../../interfaces/IERC721Transferrer.sol";
 /**
  * @title ERC721URIStorageHomeExtension
  * @dev An extension of ERC721TokenHome that adds enhanced URI storage and management functionality for NFTs.
