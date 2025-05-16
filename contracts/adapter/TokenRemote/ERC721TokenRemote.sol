@@ -72,10 +72,14 @@ abstract contract ERC721TokenRemote is
         bytes32 homeBlockchainID,
         address homeContractAddress,
         address teleporterRegistryAddress,
+        address teleporterManager,
         uint256 minTeleporterVersion
-    ) ERC721(name, symbol) TeleporterRegistryOwnableApp(teleporterRegistryAddress, msg.sender, minTeleporterVersion) {
-        require(homeBlockchainID != bytes32(0), "ERC721TokenRemote: zero home blockchain ID");
-        require(homeContractAddress != address(0), "ERC721TokenRemote: zero home contract address");
+    )
+        ERC721(name, symbol)
+        TeleporterRegistryOwnableApp(teleporterRegistryAddress, teleporterManager, minTeleporterVersion)
+    {
+        require(homeBlockchainID != bytes32(0), "ERC721TokenRemote: invalid home blockchain ID");
+        require(homeContractAddress != address(0), "ERC721TokenRemote: invalid home contract address");
 
         _homeBlockchainID = homeBlockchainID;
         _homeContractAddress = homeContractAddress;
@@ -181,20 +185,9 @@ abstract contract ERC721TokenRemote is
      * @param tokenIds The IDs of the tokens to send
      */
     function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
-        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
-        require(
-            input.destinationTokenTransferrerAddress == _homeContractAddress,
-            "ERC721TokenRemote: can only send to home contract"
-        );
-        require(_isRegistered, "ERC721TokenRemote: not registered");
+        _validateSendTokenInput(input);
+        _transferInAndBurn(tokenIds);
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 tokenId = tokenIds[i];
-            address tokenOwner = ownerOf(tokenId);
-            transferFrom(tokenOwner, address(this), tokenId);
-            _burn(tokenId);
-            emit TokenBurned(tokenId, tokenOwner);
-        }
         TransferrerMessage memory message = TransferrerMessage({
             messageType: TransferrerMessageType.SINGLE_HOP_SEND,
             payload: abi.encode(
@@ -215,7 +208,7 @@ abstract contract ERC721TokenRemote is
             })
         );
 
-        emit TokensSent(messageID, msg.sender, tokenIds);
+        emit TokensSent(messageID, _msgSender(), tokenIds);
     }
 
     /**
@@ -225,30 +218,13 @@ abstract contract ERC721TokenRemote is
      * @param tokenIds The IDs of the tokens to send
      */
     function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
-        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
-        require(
-            input.destinationTokenTransferrerAddress == _homeContractAddress,
-            "ERC721TokenRemote: can only send to home contract"
-        );
-        require(_isRegistered, "ERC721TokenRemote: not registered");
-        require(input.recipientContract != address(0), "ERC721TokenRemote: zero recipient contract address");
-        require(input.fallbackRecipient != address(0), "ERC721TokenRemote: zero fallback recipient address");
-        require(input.requiredGasLimit > 0, "ERC721TokenRemote: zero required gas limit");
-        require(input.recipientGasLimit > 0, "ERC721TokenRemote: zero recipient gas limit");
-        require(input.recipientGasLimit < input.requiredGasLimit, "ERC721TokenRemote: recipient gas limit too high");
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 tokenId = tokenIds[i];
-            address tokenOwner = ownerOf(tokenId);
-            transferFrom(tokenOwner, address(this), tokenId);
-            _burn(tokenId);
-            emit TokenBurned(tokenId, tokenOwner);
-        }
+        _validateSendAndCallInput(input);
+        _transferInAndBurn(tokenIds);
 
         SendAndCallMessage memory callMessage = SendAndCallMessage({
             recipientContract: input.recipientContract,
             tokenIds: tokenIds,
-            originSenderAddress: msg.sender,
+            originSenderAddress: _msgSender(),
             recipientPayload: input.recipientPayload,
             recipientGasLimit: input.recipientGasLimit,
             fallbackRecipient: input.fallbackRecipient,
@@ -271,7 +247,62 @@ abstract contract ERC721TokenRemote is
             })
         );
 
-        emit TokensAndCallSent(messageID, msg.sender, tokenIds);
+        emit TokensAndCallSent(messageID, _msgSender(), tokenIds);
+    }
+
+    /**
+     * @notice Transfers tokens from owner to this contract and burns them
+     * @dev Verifies the caller is the token owner, transfers the tokens, and burns them
+     * @param tokenIds The IDs of the tokens to burn
+     */
+    function _transferInAndBurn(
+        uint256[] memory tokenIds
+    ) internal {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            address tokenOwner = ownerOf(tokenId);
+            require(tokenOwner == _msgSender(), "ERC721TokenRemote: token not owned by sender");
+            transferFrom(tokenOwner, address(this), tokenId);
+            _burn(tokenId);
+            emit TokenBurned(tokenId, tokenOwner);
+        }
+    }
+
+    /**
+     * @notice Validates input parameters for basic token send operations
+     * @dev Ensures destination is the home chain and contract is registered
+     * @param input The input parameters to validate
+     */
+    function _validateSendTokenInput(
+        SendTokenInput memory input
+    ) internal view {
+        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
+        require(
+            input.destinationTokenTransferrerAddress == _homeContractAddress,
+            "ERC721TokenRemote: can only send to home contract"
+        );
+        require(_isRegistered, "ERC721TokenRemote: not registered");
+    }
+
+    /**
+     * @notice Validates input parameters for send-and-call operations
+     * @dev Ensures destination is the home chain, recipient addresses are valid, and gas limits are appropriate
+     * @param input The input parameters to validate
+     */
+    function _validateSendAndCallInput(
+        SendAndCallInput memory input
+    ) internal view {
+        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
+        require(
+            input.destinationTokenTransferrerAddress == _homeContractAddress,
+            "ERC721TokenRemote: can only send to home contract"
+        );
+        require(_isRegistered, "ERC721TokenRemote: not registered");
+        require(input.recipientContract != address(0), "ERC721TokenRemote: invalid recipient contract address");
+        require(input.fallbackRecipient != address(0), "ERC721TokenRemote: invalid fallback recipient address");
+        require(input.requiredGasLimit > 0, "ERC721TokenRemote: invalid required gas limit");
+        require(input.recipientGasLimit > 0, "ERC721TokenRemote: invalid recipient gas limit");
+        require(input.recipientGasLimit < input.requiredGasLimit, "ERC721TokenRemote: recipient gas limit too high");
     }
 
     /**
