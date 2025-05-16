@@ -61,10 +61,11 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
     constructor(
         address token,
         address teleporterRegistryAddress,
+        address teleporterManager,
         uint256 minTeleporterVersion
     )
         ERC721TokenTransferrer()
-        TeleporterRegistryOwnableApp(teleporterRegistryAddress, msg.sender, minTeleporterVersion)
+        TeleporterRegistryOwnableApp(teleporterRegistryAddress, teleporterManager, minTeleporterVersion)
     {
         _token = token;
     }
@@ -136,13 +137,8 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
     function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
         _validateSendTokenInput(input);
 
-        bytes[] memory tokenMetadata = new bytes[](tokenIds.length);
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 tokenId = tokenIds[i];
-            address tokenOwner = IERC721(_token).ownerOf(tokenId);
-            IERC721(_token).transferFrom(tokenOwner, address(this), tokenId);
-            tokenMetadata[i] = prepareTokenMetadata(tokenId, TransferrerMessageType.SINGLE_HOP_SEND);
-        }
+        bytes[] memory tokenMetadata =
+            _transferIn(tokenIds, TransferrerMessageType.SINGLE_HOP_SEND, input.destinationBlockchainID);
 
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
         TransferrerMessage memory message = TransferrerMessage({
@@ -162,11 +158,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             })
         );
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            _tokenLocation[tokenIds[i]] = input.destinationBlockchainID;
-        }
-
-        emit TokensSent(messageID, msg.sender, tokenIds);
+        emit TokensSent(messageID, _msgSender(), tokenIds);
     }
 
     /**
@@ -179,17 +171,12 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
     function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
         _validateSendAndCallInput(input);
 
-        bytes[] memory tokenMetadata = new bytes[](tokenIds.length);
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 tokenId = tokenIds[i];
-            address tokenOwner = IERC721(_token).ownerOf(tokenId);
-            IERC721(_token).transferFrom(tokenOwner, address(this), tokenId);
-            tokenMetadata[i] = prepareTokenMetadata(tokenId, TransferrerMessageType.SINGLE_HOP_CALL);
-        }
+        bytes[] memory tokenMetadata =
+            _transferIn(tokenIds, TransferrerMessageType.SINGLE_HOP_CALL, input.destinationBlockchainID);
 
         SendAndCallMessage memory message = SendAndCallMessage({
             tokenIds: tokenIds,
-            originSenderAddress: msg.sender,
+            originSenderAddress: _msgSender(),
             recipientContract: input.recipientContract,
             recipientPayload: input.recipientPayload,
             recipientGasLimit: input.recipientGasLimit,
@@ -211,11 +198,32 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             })
         );
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            _tokenLocation[tokenIds[i]] = input.destinationBlockchainID;
-        }
+        emit TokensAndCallSent(messageID, _msgSender(), tokenIds);
+    }
 
-        emit TokensAndCallSent(messageID, msg.sender, tokenIds);
+    /**
+     * @notice Transfers tokens from sender to this contract and prepares metadata for cross-chain transfer
+     * @dev Verifies the caller is the token owner, transfers tokens to this contract, and updates token location
+     * @param tokenIds The IDs of the tokens to transfer
+     * @param messageType The type of transfer message being prepared
+     * @param destinationBlockchainID The blockchain ID of the destination chain
+     * @return tokenMetadata The prepared metadata for each token
+     */
+    function _transferIn(
+        uint256[] memory tokenIds,
+        TransferrerMessageType messageType,
+        bytes32 destinationBlockchainID
+    ) internal returns (bytes[] memory tokenMetadata) {
+        tokenMetadata = new bytes[](tokenIds.length);
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            address tokenOwner = IERC721(_token).ownerOf(tokenId);
+            require(tokenOwner == _msgSender(), "ERC721TokenHome: token not owned by sender");
+            IERC721(_token).transferFrom(tokenOwner, address(this), tokenId);
+            tokenMetadata[i] = _prepareTokenMetadata(tokenId, messageType);
+            _tokenLocation[tokenId] = destinationBlockchainID;
+        }
+        return tokenMetadata;
     }
 
     /**
@@ -225,7 +233,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param messageType The type of transfer message being prepared
      * @return The encoded token metadata
      */
-    function prepareTokenMetadata(
+    function _prepareTokenMetadata(
         uint256 tokenId,
         TransferrerMessageType messageType
     ) internal view virtual returns (bytes memory);
@@ -235,9 +243,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param input The input parameters to validate
      */
     function _validateSendTokenInput(
-        SendTokenInput calldata input
+        SendTokenInput memory input
     ) internal view {
-        require(input.destinationBlockchainID != bytes32(0), "ERC721TokenHome: zero destination blockchain ID");
+        require(input.destinationBlockchainID != bytes32(0), "ERC721TokenHome: invalid destination blockchain ID");
         address remoteContract = _remoteContracts[input.destinationBlockchainID];
         require(remoteContract != address(0), "ERC721TokenHome: destination chain not registered");
         require(
@@ -246,9 +254,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
         );
         require(
             input.destinationTokenTransferrerAddress != address(0),
-            "ERC721TokenHome: zero destination token transferrer address"
+            "ERC721TokenHome: invalid destination token transferrer address"
         );
-        require(input.recipient != address(0), "ERC721TokenHome: zero recipient");
+        require(input.recipient != address(0), "ERC721TokenHome: invalid recipient");
     }
 
     /**
@@ -256,9 +264,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param input The input parameters to validate
      */
     function _validateSendAndCallInput(
-        SendAndCallInput calldata input
+        SendAndCallInput memory input
     ) internal view {
-        require(input.destinationBlockchainID != bytes32(0), "ERC721TokenHome: zero destination blockchain ID");
+        require(input.destinationBlockchainID != bytes32(0), "ERC721TokenHome: invalid destination blockchain ID");
         address remoteContract = _remoteContracts[input.destinationBlockchainID];
         require(remoteContract != address(0), "ERC721TokenHome: destination chain not registered");
         require(
@@ -267,13 +275,13 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
         );
         require(
             input.destinationTokenTransferrerAddress != address(0),
-            "ERC721TokenHome: zero destination token transferrer address"
+            "ERC721TokenHome: invalid destination token transferrer address"
         );
-        require(input.recipientContract != address(0), "ERC721TokenHome: zero recipient contract");
-        require(input.fallbackRecipient != address(0), "ERC721TokenHome: zero fallback recipient");
-        require(input.requiredGasLimit > 0, "ERC721TokenHome: zero required gas limit");
-        require(input.recipientGasLimit > 0, "ERC721TokenHome: zero recipient gas limit");
-        require(input.recipientGasLimit < input.requiredGasLimit, "TokenHome: invalid recipient gas limit");
+        require(input.recipientContract != address(0), "ERC721TokenHome: invalid recipient contract");
+        require(input.fallbackRecipient != address(0), "ERC721TokenHome: invalid fallback recipient");
+        require(input.requiredGasLimit > 0, "ERC721TokenHome: invalid required gas limit");
+        require(input.recipientGasLimit > 0, "ERC721TokenHome: invalid recipient gas limit");
+        require(input.recipientGasLimit < input.requiredGasLimit, "ERC721TokenHome: invalid recipient gas limit");
     }
 
     /**
@@ -283,9 +291,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param remoteNftTransferrerAddress The address of the contract on the remote chain
      */
     function _registerRemote(bytes32 remoteBlockchainID, address remoteNftTransferrerAddress) internal {
-        require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: zero remote blockchain ID");
+        require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: invalid remote blockchain ID");
         require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot register remote on same chain");
-        require(remoteNftTransferrerAddress != address(0), "ERC721TokenHome: zero remote token transferrer address");
+        require(remoteNftTransferrerAddress != address(0), "ERC721TokenHome: invalid remote token transferrer address");
         require(_remoteContracts[remoteBlockchainID] == address(0), "ERC721TokenHome: remote already registered");
 
         _remoteContracts[remoteBlockchainID] = remoteNftTransferrerAddress;

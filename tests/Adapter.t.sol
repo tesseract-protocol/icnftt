@@ -47,8 +47,9 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome {
     constructor(
         address homeTokenAddress,
         address teleporterRegistryAddress,
+        address teleporterManager,
         uint256 minTeleporterVersion
-    ) ERC721TokenHome(homeTokenAddress, teleporterRegistryAddress, minTeleporterVersion) {
+    ) ERC721TokenHome(homeTokenAddress, teleporterRegistryAddress, teleporterManager, minTeleporterVersion) {
         _homeToken = SimpleERC721(homeTokenAddress);
     }
 
@@ -68,8 +69,19 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorage {
         bytes32 homeChainId,
         address homeTokenAddress,
         address teleporterRegistryAddress,
+        address teleporterManager,
         uint256 minTeleporterVersion
-    ) ERC721TokenRemote(name, symbol, homeChainId, homeTokenAddress, teleporterRegistryAddress, minTeleporterVersion) {}
+    )
+        ERC721TokenRemote(
+            name,
+            symbol,
+            homeChainId,
+            homeTokenAddress,
+            teleporterRegistryAddress,
+            teleporterManager,
+            minTeleporterVersion
+        )
+    {}
 
     function _processTokenMetadata(uint256 tokenId, bytes memory metadata) internal override {
         if (metadata.length > 0) {
@@ -205,6 +217,7 @@ contract Adapter_Test is Test {
         homeToken = new ERC721TokenHomePublicMint(
             address(homeNFT),
             address(teleporterRegistry),
+            owner,
             1 // minTeleporterVersion
         );
         vm.stopPrank();
@@ -221,6 +234,7 @@ contract Adapter_Test is Test {
             HOME_CHAIN_ID,
             address(homeToken),
             address(teleporterRegistry),
+            owner,
             1 // minTeleporterVersion
         );
         vm.stopPrank();
