@@ -50,7 +50,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
     bytes32[] internal _registeredChains;
 
     /// @notice The address of the ERC721 token contract on the home chain
-    address internal _token;
+    address internal immutable _token;
 
     /**
      * @notice Initializes the ERC721TokenHome contract
