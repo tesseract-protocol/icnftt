@@ -223,7 +223,6 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             tokenMetadata[i] = _prepareTokenMetadata(tokenId, messageType);
             _tokenLocation[tokenId] = destinationBlockchainID;
         }
-        return tokenMetadata;
     }
 
     /**
