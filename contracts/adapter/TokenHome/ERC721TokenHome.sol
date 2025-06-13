@@ -67,6 +67,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
         ERC721TokenTransferrer()
         TeleporterRegistryOwnableApp(teleporterRegistryAddress, teleporterManager, minTeleporterVersion)
     {
+        require(token != address(0), "ERC721TokenHome: invalid token address");
         _token = token;
     }
 
@@ -135,6 +136,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param tokenIds The IDs of the tokens to send
      */
     function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
+        require(tokenIds.length > 0, "ERC721TokenHome: empty token array");
         _validateSendTokenInput(input);
 
         bytes[] memory tokenMetadata =
@@ -169,6 +171,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param tokenIds The IDs of the tokens to send
      */
     function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+        require(tokenIds.length > 0, "ERC721TokenHome: empty token array");
         _validateSendAndCallInput(input);
 
         bytes[] memory tokenMetadata =

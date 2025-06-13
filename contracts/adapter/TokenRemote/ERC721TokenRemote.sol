@@ -185,6 +185,7 @@ abstract contract ERC721TokenRemote is
      * @param tokenIds The IDs of the tokens to send
      */
     function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
+        require(tokenIds.length > 0, "ERC721TokenRemote: empty token array");
         _validateSendTokenInput(input);
         _transferInAndBurn(tokenIds);
 
@@ -218,6 +219,7 @@ abstract contract ERC721TokenRemote is
      * @param tokenIds The IDs of the tokens to send
      */
     function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+        require(tokenIds.length > 0, "ERC721TokenRemote: empty token array");
         _validateSendAndCallInput(input);
         _transferInAndBurn(tokenIds);
 
