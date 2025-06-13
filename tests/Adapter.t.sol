@@ -53,7 +53,7 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome {
         _homeToken = SimpleERC721(homeTokenAddress);
     }
 
-    function prepareTokenMetadata(
+    function _prepareTokenMetadata(
         uint256 tokenId,
         TransferrerMessageType
     ) internal view override returns (bytes memory) {
@@ -281,6 +281,27 @@ contract Adapter_Test is Test {
         bytes32[] memory registeredChains = homeToken.getRegisteredChains();
         assertEq(registeredChains.length, 1);
         assertEq(registeredChains[0], REMOTE_CHAIN_ID);
+    }
+
+    // Test remote chain registration process
+    function testRegisterRemoteUntrusted() public {
+        // Start with no registered chains
+        bytes32[] memory initialChains = homeToken.getRegisteredChains();
+        assertEq(initialChains.length, 0);
+
+        // Register remote with home
+        vm.prank(user1);
+        remoteToken.registerWithHome(TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
+
+        // Verify message was sent from remote to home
+        assertTrue(teleporterMessenger.hasPendingMessages(HOME_CHAIN_ID, address(homeToken)));
+
+        // Process the register message at home
+        processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
+
+        // Verify home contract registered the remote chain
+        bytes32[] memory registeredChains = homeToken.getRegisteredChains();
+        assertEq(registeredChains.length, 0);
     }
 
     // Test sending token from home to remote
