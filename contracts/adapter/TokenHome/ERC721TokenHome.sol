@@ -219,9 +219,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             uint256 tokenId = tokenIds[i];
             address tokenOwner = IERC721(_token).ownerOf(tokenId);
             require(tokenOwner == _msgSender(), "ERC721TokenHome: token not owned by sender");
-            IERC721(_token).transferFrom(tokenOwner, address(this), tokenId);
             tokenMetadata[i] = _prepareTokenMetadata(tokenId, messageType);
             _tokenLocation[tokenId] = destinationBlockchainID;
+            IERC721(_token).transferFrom(tokenOwner, address(this), tokenId);
         }
         return tokenMetadata;
     }
