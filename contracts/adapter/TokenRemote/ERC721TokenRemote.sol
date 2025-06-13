@@ -22,6 +22,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title ERC721TokenRemote
@@ -40,6 +41,7 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
  * The contract must be registered with its corresponding home contract before it can be used.
  */
 abstract contract ERC721TokenRemote is
+    ReentrancyGuard,
     ERC721,
     IERC721TokenRemote,
     ERC721TokenTransferrer,
@@ -184,7 +186,24 @@ abstract contract ERC721TokenRemote is
      * @param input Parameters for the cross-chain token transfer
      * @param tokenIds The IDs of the tokens to send
      */
-    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
+    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external {
+        _send(input, tokenIds);
+    }
+
+    /**
+     * @notice Sends a token to a contract on the home chain and calls a function on it
+     * @dev Burns the token on this chain and sends a message to the home chain
+     * @param input Parameters for the cross-chain token transfer and contract call
+     * @param tokenIds The IDs of the tokens to send
+     */
+    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external {
+        _sendAndCall(input, tokenIds);
+    }
+
+    /**
+     * @dev See {ERC721TokenRemote-send}
+     */
+    function _send(SendTokenInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
         _validateSendTokenInput(input);
         _transferInAndBurn(tokenIds);
 
@@ -212,12 +231,9 @@ abstract contract ERC721TokenRemote is
     }
 
     /**
-     * @notice Sends a token to a contract on the home chain and calls a function on it
-     * @dev Burns the token on this chain and sends a message to the home chain
-     * @param input Parameters for the cross-chain token transfer and contract call
-     * @param tokenIds The IDs of the tokens to send
+     * @dev See {ERC721TokenRemote-sendAndCall}
      */
-    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+    function _sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
         _validateSendAndCallInput(input);
         _transferInAndBurn(tokenIds);
 
