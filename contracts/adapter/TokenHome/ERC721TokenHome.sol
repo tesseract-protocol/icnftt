@@ -215,7 +215,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
         bytes32 destinationBlockchainID
     ) internal returns (bytes[] memory tokenMetadata) {
         tokenMetadata = new bytes[](tokenIds.length);
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
             uint256 tokenId = tokenIds[i];
             address tokenOwner = IERC721(_token).ownerOf(tokenId);
             require(tokenOwner == _msgSender(), "ERC721TokenHome: token not owned by sender");
@@ -329,7 +329,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             )
         );
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
             uint256 tokenId = tokenIds[i];
             IERC721(_token).approve(message.recipientContract, tokenId);
         }
@@ -341,7 +341,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             emit CallFailed(message.recipientContract, tokenIds);
         }
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
             uint256 tokenId = tokenIds[i];
             if (IERC721(_token).ownerOf(tokenId) == address(this)) {
                 IERC721(_token).transferFrom(address(this), message.fallbackRecipient, tokenId);
@@ -395,7 +395,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             _registerRemote(sourceBlockchainID, originSenderAddress);
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
             SendTokenMessage memory sendTokenMessage = abi.decode(transferrerMessage.payload, (SendTokenMessage));
-            for (uint256 i = 0; i < sendTokenMessage.tokenIds.length; i++) {
+            for (uint256 i = 0; i < sendTokenMessage.tokenIds.length; ++i) {
                 _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendTokenMessage.tokenIds[i]);
                 _tokenLocation[sendTokenMessage.tokenIds[i]] = bytes32(0);
                 IERC721(_token).safeTransferFrom(
@@ -404,7 +404,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             }
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
             SendAndCallMessage memory sendAndCallMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
-            for (uint256 i = 0; i < sendAndCallMessage.tokenIds.length; i++) {
+            for (uint256 i = 0; i < sendAndCallMessage.tokenIds.length; ++i) {
                 _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenIds[i]);
                 _tokenLocation[sendAndCallMessage.tokenIds[i]] = bytes32(0);
             }
