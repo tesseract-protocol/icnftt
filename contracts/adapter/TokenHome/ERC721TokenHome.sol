@@ -41,7 +41,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * of tokens when they are transferred cross-chain, while working with existing ERC721 tokens.
  */
 abstract contract ERC721TokenHome is
-    ReentrancyGuard,
     IERC721TokenHome,
     ERC721TokenTransferrer,
     TeleporterRegistryOwnableApp

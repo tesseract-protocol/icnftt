@@ -22,7 +22,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title ERC721TokenRemote
@@ -41,7 +40,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * The contract must be registered with its corresponding home contract before it can be used.
  */
 abstract contract ERC721TokenRemote is
-    ReentrancyGuard,
     ERC721,
     IERC721TokenRemote,
     ERC721TokenTransferrer,
