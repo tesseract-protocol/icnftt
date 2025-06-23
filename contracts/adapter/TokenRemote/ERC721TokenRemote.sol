@@ -273,7 +273,7 @@ abstract contract ERC721TokenRemote is
     function _transferInAndBurn(
         uint256[] memory tokenIds
     ) internal {
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
             uint256 tokenId = tokenIds[i];
             address tokenOwner = ownerOf(tokenId);
             require(tokenOwner == _msgSender(), "ERC721TokenRemote: token not owned by sender");
@@ -339,7 +339,7 @@ abstract contract ERC721TokenRemote is
             )
         );
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
             _approve(message.recipientContract, tokenIds[i], address(this));
         }
         bool success = CallUtils._callWithExactGas(message.recipientGasLimit, message.recipientContract, payload);
@@ -350,7 +350,7 @@ abstract contract ERC721TokenRemote is
             emit CallFailed(message.recipientContract, tokenIds);
         }
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
             if (ownerOf(tokenIds[i]) == address(this)) {
                 _transfer(address(this), message.fallbackRecipient, tokenIds[i]);
             }
@@ -406,14 +406,14 @@ abstract contract ERC721TokenRemote is
 
         if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
             SendTokenMessage memory sendTokenMessage = abi.decode(transferrerMessage.payload, (SendTokenMessage));
-            for (uint256 i = 0; i < sendTokenMessage.tokenIds.length; i++) {
+            for (uint256 i = 0; i < sendTokenMessage.tokenIds.length; ++i) {
                 _receiveToken(
                     sendTokenMessage.tokenIds[i], sendTokenMessage.recipient, sendTokenMessage.tokenMetadata[i]
                 );
             }
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
             SendAndCallMessage memory sendAndCallMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
-            for (uint256 i = 0; i < sendAndCallMessage.tokenIds.length; i++) {
+            for (uint256 i = 0; i < sendAndCallMessage.tokenIds.length; ++i) {
                 _receiveToken(sendAndCallMessage.tokenIds[i], address(this), sendAndCallMessage.tokenMetadata[i]);
             }
             _handleSendAndCall(sendAndCallMessage, sendAndCallMessage.tokenIds);
