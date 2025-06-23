@@ -53,7 +53,7 @@ contract ERC721TokenHomePublicMint is ERC721TokenHome {
         _homeToken = SimpleERC721(homeTokenAddress);
     }
 
-    function prepareTokenMetadata(
+    function _prepareTokenMetadata(
         uint256 tokenId,
         TransferrerMessageType
     ) internal view override returns (bytes memory) {
@@ -169,6 +169,48 @@ contract MockERC721Receiver is IERC721SendAndCallReceiver {
                 revert("Transfer failed without reason");
             }
         }
+    }
+}
+
+contract HomeReentrancyContract {
+    ERC721TokenHomePublicMint public homeToken;
+    SimpleERC721 public homeNFT;
+    TokenRemote public remoteToken;
+    bytes32 constant REMOTE_CHAIN_ID = bytes32(uint256(2));
+
+    constructor(ERC721TokenHomePublicMint _homeToken, TokenRemote _remoteToken, SimpleERC721 _homeNFT){
+        homeToken = _homeToken;
+        remoteToken = _remoteToken;
+        homeNFT = _homeNFT;
+    }
+
+    function receiveTokens(
+        bytes32 sourceBlockchainID,
+        address originTokenTransferrerAddress,
+        address originSenderAddress,
+        address tokenAddress,
+        uint256[] calldata tokenIds,
+        bytes calldata payload
+    ) external{
+        console.log("HomeReentrancyContract: receiveTokens");
+        homeNFT.transferFrom(msg.sender, address(this), 1);
+
+        uint256[] memory tokenIds_ = new uint256[](1);
+
+        tokenIds_[0] = 1;
+
+        homeNFT.approve(address(homeToken), 1);
+
+        console.log("HomeReentrancyContract: sending token to remote chain");
+
+        homeToken.send(SendTokenInput({
+            destinationBlockchainID: REMOTE_CHAIN_ID,
+            destinationTokenTransferrerAddress: address(remoteToken),
+            recipient: address(this),
+            primaryFeeTokenAddress: address(0),
+            primaryFee: 0,
+            requiredGasLimit: 0
+        }), tokenIds);
     }
 }
 
@@ -604,5 +646,83 @@ contract Adapter_Test is Test {
         // Verify tokens are owned by the home receiver contract
         assertEq(homeNFT.ownerOf(1), address(homeReceiver));
         assertEq(homeNFT.ownerOf(2), address(homeReceiver));
+    }
+
+    function testSendAndCallReentrancy() public {
+        _registerRemoteChain();
+
+        // User1 mints tokens
+        vm.startPrank(user1);
+        homeNFT.mint(user1, 1, "token1.json");
+
+        // Approve tokens
+        homeNFT.approve(address(homeToken), 1);
+
+        assertEq(homeNFT.ownerOf(1), user1);
+        vm.expectRevert();
+        remoteToken.ownerOf(1);
+
+        // Create array of token IDs
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 1;
+
+        HomeReentrancyContract homeReentrancyContract = new HomeReentrancyContract(homeToken, remoteToken, homeNFT);
+
+        // Send tokens with contract call
+        bytes memory receiverPayload = abi.encode("test data");
+        homeToken.sendAndCall(
+            SendAndCallInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipientContract: address(remoteReceiver),
+                recipientPayload: receiverPayload,
+                recipientGasLimit: 800000,
+                fallbackRecipient: user2,
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 900000
+            }),
+            tokenIds
+        );
+        vm.stopPrank();
+
+        // Check tokens are owned by home contract
+        assertEq(homeNFT.ownerOf(1), address(homeToken), "Token 1 not owned by home contract");
+
+        // Process the message at remote
+        processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+
+        // Verify tokens are owned by the receiver contract
+        assertEq(remoteToken.ownerOf(1), address(remoteReceiver), "Token 1 not owned by receiver contract");
+
+        // Send tokens back to home with contract call
+        vm.prank(address(remoteReceiver));
+        remoteToken.sendAndCall(
+            SendAndCallInput({
+                destinationBlockchainID: HOME_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(homeToken),
+                recipientContract: address(homeReentrancyContract),
+                recipientPayload: receiverPayload,
+                recipientGasLimit: 800000,
+                fallbackRecipient: address(homeReentrancyContract),
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 900000
+            }),
+            tokenIds
+        );
+
+        // Process the return message(s)
+        processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
+        if (teleporterMessenger.hasPendingMessages(REMOTE_CHAIN_ID, address(remoteToken))) {
+            processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
+        }
+
+        // Verify tokens are owned by the home receiver contract
+        assertEq(homeNFT.ownerOf(1), address(homeReentrancyContract));
+
+        // Check remote token state - should be burned
+        vm.expectRevert();
+        remoteToken.ownerOf(1);
     }
 }

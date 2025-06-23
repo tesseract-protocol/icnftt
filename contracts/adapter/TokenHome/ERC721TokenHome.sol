@@ -23,6 +23,7 @@ import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title ERC721TokenHome
@@ -39,7 +40,11 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  * This contract maintains registries of connected remote chains and tracks the current location
  * of tokens when they are transferred cross-chain, while working with existing ERC721 tokens.
  */
-abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, TeleporterRegistryOwnableApp {
+abstract contract ERC721TokenHome is
+    IERC721TokenHome,
+    ERC721TokenTransferrer,
+    TeleporterRegistryOwnableApp
+{
     /// @notice Mapping from blockchain ID to the contract address on that chain
     mapping(bytes32 => address) internal _remoteContracts;
 
@@ -134,7 +139,25 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param input Parameters for the cross-chain token transfer
      * @param tokenIds The IDs of the tokens to send
      */
-    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
+    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external {
+        _send(input, tokenIds);
+    }
+
+    /**
+     * @notice Sends a token to a contract on another chain and executes a function on that contract
+     * @dev The token is transferred to this contract, and a message is sent to the destination chain
+     * @dev If the contract call fails, the token is sent to the fallback recipient
+     * @param input Parameters for the cross-chain token transfer and contract call
+     * @param tokenIds The IDs of the tokens to send
+     */
+    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external {
+        _sendAndCall(input, tokenIds);
+    }
+
+    /**
+     * @dev See {ERC721TokenHome-send}
+     */
+    function _send(SendTokenInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
         _validateSendTokenInput(input);
 
         bytes[] memory tokenMetadata =
@@ -162,13 +185,9 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
     }
 
     /**
-     * @notice Sends a token to a contract on another chain and executes a function on that contract
-     * @dev The token is transferred to this contract, and a message is sent to the destination chain
-     * @dev If the contract call fails, the token is sent to the fallback recipient
-     * @param input Parameters for the cross-chain token transfer and contract call
-     * @param tokenIds The IDs of the tokens to send
+     * @dev See {ERC721TokenHome-sendAndCall}
      */
-    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+    function _sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
         _validateSendAndCallInput(input);
 
         bytes[] memory tokenMetadata =
@@ -334,7 +353,6 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             IERC721(_token).approve(message.recipientContract, tokenId);
         }
         bool success = CallUtils._callWithExactGas(message.recipientGasLimit, message.recipientContract, payload);
-
         if (success) {
             emit CallSucceeded(message.recipientContract, tokenIds);
         } else {

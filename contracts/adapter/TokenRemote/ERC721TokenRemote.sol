@@ -184,7 +184,24 @@ abstract contract ERC721TokenRemote is
      * @param input Parameters for the cross-chain token transfer
      * @param tokenIds The IDs of the tokens to send
      */
-    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
+    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external {
+        _send(input, tokenIds);
+    }
+
+    /**
+     * @notice Sends a token to a contract on the home chain and calls a function on it
+     * @dev Burns the token on this chain and sends a message to the home chain
+     * @param input Parameters for the cross-chain token transfer and contract call
+     * @param tokenIds The IDs of the tokens to send
+     */
+    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external {
+        _sendAndCall(input, tokenIds);
+    }
+
+    /**
+     * @dev See {ERC721TokenRemote-send}
+     */
+    function _send(SendTokenInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
         _validateSendTokenInput(input);
         _transferInAndBurn(tokenIds);
 
@@ -212,12 +229,9 @@ abstract contract ERC721TokenRemote is
     }
 
     /**
-     * @notice Sends a token to a contract on the home chain and calls a function on it
-     * @dev Burns the token on this chain and sends a message to the home chain
-     * @param input Parameters for the cross-chain token transfer and contract call
-     * @param tokenIds The IDs of the tokens to send
+     * @dev See {ERC721TokenRemote-sendAndCall}
      */
-    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+    function _sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
         _validateSendAndCallInput(input);
         _transferInAndBurn(tokenIds);
 
