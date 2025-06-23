@@ -46,10 +46,10 @@ abstract contract ERC721TokenHome is
     TeleporterRegistryOwnableApp
 {
     /// @notice Mapping from blockchain ID to the contract address on that chain
-    mapping(bytes32 => address) internal _remoteContracts;
+    mapping(bytes32 remoteBlockchainID => address remoteContractAddress) internal _remoteContracts;
 
     /// @notice Mapping from token ID to the blockchain ID where the token currently exists
-    mapping(uint256 => bytes32) internal _tokenLocation;
+    mapping(uint256 tokenId => bytes32 blockchainID) internal _tokenLocation;
 
     /// @notice List of all registered remote chains
     bytes32[] internal _registeredChains;
