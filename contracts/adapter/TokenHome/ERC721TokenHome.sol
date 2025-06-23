@@ -55,7 +55,7 @@ abstract contract ERC721TokenHome is
     bytes32[] internal _registeredChains;
 
     /// @notice The address of the ERC721 token contract on the home chain
-    address internal _token;
+    address internal immutable _token;
 
     /// @notice Mapping from blockchain ID to the expected remote contract address
     mapping(bytes32 => address) internal _expectedRemoteContracts;
