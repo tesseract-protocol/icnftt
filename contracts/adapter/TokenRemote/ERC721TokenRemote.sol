@@ -64,6 +64,7 @@ abstract contract ERC721TokenRemote is
      * @param homeBlockchainID The blockchain ID of the home chain
      * @param homeContractAddress The address of the home contract
      * @param teleporterRegistryAddress The address of the Teleporter registry
+     * @param teleporterManager The address of the Teleporter manager that will be responsible for managing cross-chain messages
      * @param minTeleporterVersion The minimum required Teleporter version
      */
     constructor(
