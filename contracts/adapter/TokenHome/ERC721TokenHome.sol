@@ -271,7 +271,6 @@ abstract contract ERC721TokenHome is
             _tokenLocation[tokenId] = destinationBlockchainID;
             IERC721(_token).transferFrom(tokenOwner, address(this), tokenId);
         }
-        return tokenMetadata;
     }
 
     /**
