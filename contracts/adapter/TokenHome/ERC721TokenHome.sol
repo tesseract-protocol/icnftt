@@ -300,10 +300,6 @@ abstract contract ERC721TokenHome is
             remoteContract == input.destinationTokenTransferrerAddress,
             "ERC721TokenHome: invalid destination token transferrer address"
         );
-        require(
-            input.destinationTokenTransferrerAddress != address(0),
-            "ERC721TokenHome: invalid destination token transferrer address"
-        );
         require(input.recipient != address(0), "ERC721TokenHome: invalid recipient");
     }
 
@@ -319,10 +315,6 @@ abstract contract ERC721TokenHome is
         require(remoteContract != address(0), "ERC721TokenHome: destination chain not registered");
         require(
             remoteContract == input.destinationTokenTransferrerAddress,
-            "ERC721TokenHome: invalid destination token transferrer address"
-        );
-        require(
-            input.destinationTokenTransferrerAddress != address(0),
             "ERC721TokenHome: invalid destination token transferrer address"
         );
         require(input.recipientContract != address(0), "ERC721TokenHome: invalid recipient contract");
