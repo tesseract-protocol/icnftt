@@ -57,6 +57,9 @@ abstract contract ERC721TokenHome is
     /// @notice The address of the ERC721 token contract on the home chain
     address internal _token;
 
+    /// @notice Mapping from blockchain ID to the expected remote contract address
+    mapping(bytes32 => address) internal _expectedRemoteContracts;
+
     /**
      * @notice Initializes the ERC721TokenHome contract
      * @param token The address of the existing ERC721 token contract to adapt
@@ -131,6 +134,31 @@ abstract contract ERC721TokenHome is
      */
     function getToken() external view override returns (address) {
         return _token;
+    }
+
+    /**
+     * @notice Sets the expected remote contract address for a chain
+     * @dev Can only be called by the contract owner. Set to address(0) to remove permissions.
+     * @param remoteBlockchainID The blockchain ID of the remote chain
+     * @param expectedRemoteAddress The expected address of the remote contract
+     */
+    function setExpectedRemoteContract(bytes32 remoteBlockchainID, address expectedRemoteAddress) external {
+        _checkTeleporterRegistryAppAccess();
+        require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: invalid remote blockchain ID");
+        require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot set same chain");
+        require(_remoteContracts[remoteBlockchainID] == address(0), "ERC721TokenHome: chain already registered");
+
+        _expectedRemoteContracts[remoteBlockchainID] = expectedRemoteAddress;
+        emit RemoteChainExpectedContractSet(remoteBlockchainID, expectedRemoteAddress);
+    }
+
+    /**
+     * @notice Returns the expected remote contract address for a chain
+     * @param remoteBlockchainID The blockchain ID of the remote chain
+     * @return The expected remote contract address
+     */
+    function getExpectedRemoteContract(bytes32 remoteBlockchainID) external view returns (address) {
+        return _expectedRemoteContracts[remoteBlockchainID];
     }
 
     /**
@@ -314,6 +342,10 @@ abstract contract ERC721TokenHome is
         require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot register remote on same chain");
         require(remoteNftTransferrerAddress != address(0), "ERC721TokenHome: invalid remote token transferrer address");
         require(_remoteContracts[remoteBlockchainID] == address(0), "ERC721TokenHome: remote already registered");
+        require(
+            remoteNftTransferrerAddress == _expectedRemoteContracts[remoteBlockchainID],
+            "ERC721TokenHome: unexpected remote contract address"
+        );
 
         _remoteContracts[remoteBlockchainID] = remoteNftTransferrerAddress;
         _registeredChains.push(remoteBlockchainID);

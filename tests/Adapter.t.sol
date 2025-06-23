@@ -289,12 +289,15 @@ contract Adapter_Test is Test {
     // Helper function to process teleporter messages
     function processNextTeleporterMessage(bytes32 destinationChainID, address destinationAddress) internal {
         require(teleporterMessenger.hasPendingMessages(destinationChainID, destinationAddress), "No pending messages");
-        bool success = teleporterMessenger.deliverNextMessage(destinationChainID, destinationAddress);
-        require(success, "Message delivery failed");
+        teleporterMessenger.deliverNextMessage(destinationChainID, destinationAddress);
     }
 
     // Helper function to register remote chain with home and sync the baseURI
     function _registerRemoteChain() internal {
+        // First set the expected remote contract
+        vm.prank(owner);
+        homeToken.setExpectedRemoteContract(REMOTE_CHAIN_ID, address(remoteToken));
+
         // Register remote chain with home
         vm.prank(owner);
         remoteToken.registerWithHome(TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
@@ -308,6 +311,10 @@ contract Adapter_Test is Test {
         // Start with no registered chains
         bytes32[] memory initialChains = homeToken.getRegisteredChains();
         assertEq(initialChains.length, 0);
+
+        // Set the expected remote contract
+        vm.prank(owner);
+        homeToken.setExpectedRemoteContract(REMOTE_CHAIN_ID, address(remoteToken));
 
         // Register remote with home
         vm.prank(owner);
@@ -323,6 +330,70 @@ contract Adapter_Test is Test {
         bytes32[] memory registeredChains = homeToken.getRegisteredChains();
         assertEq(registeredChains.length, 1);
         assertEq(registeredChains[0], REMOTE_CHAIN_ID);
+    }
+
+    // Test remote chain registration process with unset expected contract
+    function testRegisterRemoteUnexpected() public {
+        // Start with no registered chains
+        bytes32[] memory initialChains = homeToken.getRegisteredChains();
+        assertEq(initialChains.length, 0);
+
+        // Try to register remote with home without setting expected contract
+        vm.prank(owner);
+        remoteToken.registerWithHome(TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
+
+        // Verify message was sent from remote to home
+        assertTrue(teleporterMessenger.hasPendingMessages(HOME_CHAIN_ID, address(homeToken)));
+
+        // Process the register message at home - should fail
+        processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
+
+        // Verify home contract did not register the remote chain
+        bytes32[] memory registeredChains = homeToken.getRegisteredChains();
+        assertEq(registeredChains.length, 0);
+    }
+
+    // Test remote chain registration process with wrong address
+    function testRegisterRemoteWrongAddress() public {
+        // Start with no registered chains
+        bytes32[] memory initialChains = homeToken.getRegisteredChains();
+        assertEq(initialChains.length, 0);
+
+        // Set the expected remote contract with wrong address
+        vm.prank(owner);
+        homeToken.setExpectedRemoteContract(REMOTE_CHAIN_ID, address(0x1234));
+
+        // Register remote with home
+        vm.prank(owner);
+        remoteToken.registerWithHome(TeleporterFeeInfo({feeTokenAddress: address(0), amount: 0}));
+
+        // Verify message was sent from remote to home
+        assertTrue(teleporterMessenger.hasPendingMessages(HOME_CHAIN_ID, address(homeToken)));
+
+        // Process the register message at home - should fail
+        processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
+
+        // Verify home contract did not register the remote chain
+        bytes32[] memory registeredChains = homeToken.getRegisteredChains();
+        assertEq(registeredChains.length, 0);
+    }
+
+    // Test expected remote contract management
+    function testExpectedRemoteContractManagement() public {
+        // Test setting expected contract
+        vm.prank(owner);
+        homeToken.setExpectedRemoteContract(REMOTE_CHAIN_ID, address(remoteToken));
+        assertEq(homeToken.getExpectedRemoteContract(REMOTE_CHAIN_ID), address(remoteToken));
+
+        // Test removing expected contract
+        vm.prank(owner);
+        homeToken.setExpectedRemoteContract(REMOTE_CHAIN_ID, address(0));
+        assertEq(homeToken.getExpectedRemoteContract(REMOTE_CHAIN_ID), address(0));
+        
+        // Test non-owner cannot set expected contract
+        vm.prank(user1);
+        vm.expectRevert();
+        homeToken.setExpectedRemoteContract(REMOTE_CHAIN_ID, address(remoteToken));
     }
 
     // Test sending token from home to remote

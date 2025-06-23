@@ -64,4 +64,11 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param remote The address of the contract on the remote chain
      */
     event RemoteChainRegistered(bytes32 indexed blockchainID, address indexed remote);
+
+    /**
+     * @dev Emitted when a remote chain's expected contract is set or removed
+     * @param blockchainID The blockchain ID of the remote chain
+     * @param expectedRemote The expected address of the remote contract (address(0) if being removed)
+     */
+    event RemoteChainExpectedContractSet(bytes32 indexed blockchainID, address indexed expectedRemote);
 }
