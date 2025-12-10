@@ -65,6 +65,9 @@ enum TransferrerMessageType {
 
 /**
  * @dev Message structure for basic token transfers.
+ * @param recipient The address that will receive the tokens on the destination chain
+ * @param tokenIds Array of token IDs being transferred
+ * @param tokenMetadata Array of metadata bytes for each token being transferred
  */
 struct SendTokenMessage {
     address recipient;
@@ -74,6 +77,13 @@ struct SendTokenMessage {
 
 /**
  * @dev Message structure for send-and-call operations.
+ * @param originSenderAddress The address of the original sender on the source chain
+ * @param recipientContract The address of the contract that will receive the tokens and be called
+ * @param tokenIds Array of token IDs being transferred
+ * @param recipientPayload The calldata to be passed to the recipient contract
+ * @param recipientGasLimit The gas limit allocated for the recipient contract call
+ * @param fallbackRecipient The address that will receive the tokens if the contract call fails
+ * @param tokenMetadata Array of metadata bytes for each token being transferred
  */
 struct SendAndCallMessage {
     address originSenderAddress;
@@ -87,6 +97,8 @@ struct SendAndCallMessage {
 
 /**
  * @dev Generic message structure used for all transferrer messages.
+ * @param messageType The type of message being sent (REGISTER_REMOTE, SINGLE_HOP_SEND, or SINGLE_HOP_CALL)
+ * @param payload The encoded message payload containing the actual transfer data
  */
 struct TransferrerMessage {
     TransferrerMessageType messageType;
@@ -95,21 +107,31 @@ struct TransferrerMessage {
 
 /**
  * @dev Emitted when a token is sent to another chain.
+ * @param teleporterMessageID The unique identifier of the Teleporter message
+ * @param sender The address of the sender initiating the transfer
+ * @param tokenIds Array of token IDs being transferred
  */
 event TokensSent(bytes32 indexed teleporterMessageID, address indexed sender, uint256[] tokenIds);
 
 /**
  * @dev Emitted when a token is sent with contract call data to another chain.
+ * @param teleporterMessageID The unique identifier of the Teleporter message
+ * @param sender The address of the sender initiating the transfer
+ * @param tokenIds Array of token IDs being transferred
  */
 event TokensAndCallSent(bytes32 indexed teleporterMessageID, address indexed sender, uint256[] tokenIds);
 
 /**
  * @dev Emitted when a contract call succeeds in a send-and-call operation.
+ * @param recipientContract The address of the contract that successfully received and processed the tokens
+ * @param tokenIds Array of token IDs that were successfully transferred and processed
  */
 event CallSucceeded(address indexed recipientContract, uint256[] tokenIds);
 
 /**
  * @dev Emitted when a contract call fails in a send-and-call operation.
+ * @param recipientContract The address of the contract that failed to process the tokens
+ * @param tokenIds Array of token IDs that were involved in the failed operation
  */
 event CallFailed(address indexed recipientContract, uint256[] tokenIds);
 
