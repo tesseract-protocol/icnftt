@@ -181,7 +181,8 @@ abstract contract ERC721TokenHome is
      * @param input Parameters for the cross-chain token transfer and contract call
      * @param tokenIds The IDs of the tokens to send
      */
-    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external {
+    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+        require(tokenIds.length > 0, "ERC721TokenHome: empty token array");
         _sendAndCall(input, tokenIds);
     }
 
@@ -219,8 +220,6 @@ abstract contract ERC721TokenHome is
      * @dev See {ERC721TokenHome-sendAndCall}
      */
     function _sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
-        require(tokenIds.length > 0, "ERC721TokenHome: empty token array");
-
         _validateSendAndCallInput(input);
 
         bytes[] memory tokenMetadata =
