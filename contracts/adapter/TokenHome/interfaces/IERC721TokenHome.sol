@@ -59,7 +59,13 @@ interface IERC721TokenHome is IERC721Transferrer {
     ) external view returns (bytes32);
 
     /**
-     * @dev Emitted when a remote chain contract is registered
+     * @dev Emitted when the ERC721TokenHome contract is initialized
+     * @param token The address of the ERC721 token contract
+     */
+    event ERC721TokenHomeInitialized(address indexed token);
+
+    /**
+     * @dev Emitted when a TokenRemote contract is registered
      * @param blockchainID The blockchain ID of the registered remote chain
      * @param remote The address of the contract on the remote chain
      */
@@ -71,4 +77,11 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param expectedRemote The expected address of the remote contract (address(0) if being removed)
      */
     event RemoteChainExpectedContractSet(bytes32 indexed blockchainID, address indexed expectedRemote);
+
+    /**
+     * @dev Emitted when the location of a token is updated
+     * @param tokenId The ID of the token
+     * @param destinationBlockchainID The blockchain ID of the destination chain
+     */
+    event TokenLocationUpdated(uint256 indexed tokenId, bytes32 indexed destinationBlockchainID);
 }

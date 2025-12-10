@@ -78,6 +78,8 @@ abstract contract ERC721TokenHome is
     {
         require(token != address(0), "ERC721TokenHome: invalid token address");
         _token = token;
+
+        emit ERC721TokenHomeInitialized(_token);
     }
 
     /**
@@ -272,6 +274,7 @@ abstract contract ERC721TokenHome is
             require(tokenOwner == _msgSender(), "ERC721TokenHome: token not owned by sender");
             tokenMetadata[i] = _prepareTokenMetadata(tokenId, messageType);
             _tokenLocation[tokenId] = destinationBlockchainID;
+            emit TokenLocationUpdated(tokenId, destinationBlockchainID);
             IERC721(_token).transferFrom(tokenOwner, address(this), tokenId);
         }
     }
@@ -443,6 +446,7 @@ abstract contract ERC721TokenHome is
             for (uint256 i = 0; i < sendTokenMessage.tokenIds.length; ++i) {
                 _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendTokenMessage.tokenIds[i]);
                 _tokenLocation[sendTokenMessage.tokenIds[i]] = bytes32(0);
+                emit TokenLocationUpdated(sendTokenMessage.tokenIds[i], bytes32(0));
                 IERC721(_token).safeTransferFrom(
                     address(this), sendTokenMessage.recipient, sendTokenMessage.tokenIds[i]
                 );
@@ -452,6 +456,7 @@ abstract contract ERC721TokenHome is
             for (uint256 i = 0; i < sendAndCallMessage.tokenIds.length; ++i) {
                 _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenIds[i]);
                 _tokenLocation[sendAndCallMessage.tokenIds[i]] = bytes32(0);
+                emit TokenLocationUpdated(sendAndCallMessage.tokenIds[i], bytes32(0));
             }
             _handleSendAndCall(sendAndCallMessage, sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenIds);
         }

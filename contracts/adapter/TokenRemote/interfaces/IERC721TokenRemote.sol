@@ -31,6 +31,13 @@ interface IERC721TokenRemote is IERC721Transferrer {
     function getIsRegistered() external view returns (bool);
 
     /**
+     * @dev Emitted when the ERC721TokenRemote contract is initialized
+     * @param homeBlockchainID The blockchain ID of the home chain
+     * @param homeContractAddress The address of the home contract
+     */
+    event ERC721TokenRemoteInitialized(bytes32 indexed homeBlockchainID, address indexed homeContractAddress);
+
+    /**
      * @dev Emitted when a token is minted on the remote chain
      * @param tokenId The ID of the token minted
      * @param owner The address of the token recipient
@@ -45,9 +52,17 @@ interface IERC721TokenRemote is IERC721Transferrer {
     event TokenBurned(uint256 indexed tokenId, address indexed owner);
 
     /**
-     * @dev Emitted when the home chain is registered during contract creation
+     * @dev Emitted after the first successful transfer of tokens from the home chain to the remote chain, finalizing the registration of the home chain
      * @param chainId The blockchain ID of the home chain
      * @param homeAddress The address of the home contract
      */
     event HomeChainRegistered(bytes32 indexed chainId, address indexed homeAddress);
+
+    /**
+     * @dev Emitted after a registration message is sent to the home contract
+     * @param teleporterMessageID The ID of the Teleporter message
+     * @param destinationBlockchainID The blockchain ID of the destination chain
+     * @param remote The address of the contract on the remote chain
+     */
+    event RegisterWithHome(bytes32 indexed teleporterMessageID, bytes32 indexed destinationBlockchainID, address indexed remote);
 }

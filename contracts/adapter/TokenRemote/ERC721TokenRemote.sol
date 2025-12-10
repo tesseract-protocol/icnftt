@@ -85,7 +85,7 @@ abstract contract ERC721TokenRemote is
         _homeBlockchainID = homeBlockchainID;
         _homeContractAddress = homeContractAddress;
 
-        emit HomeChainRegistered(_homeBlockchainID, _homeContractAddress);
+        emit ERC721TokenRemoteInitialized(_homeBlockchainID, _homeContractAddress);
     }
 
     /**
@@ -127,7 +127,7 @@ abstract contract ERC721TokenRemote is
 
         _handleFees(feeInfo.feeTokenAddress, feeInfo.amount);
 
-        _sendTeleporterMessage(
+        bytes32 messageID = _sendTeleporterMessage(
             TeleporterMessageInput({
                 destinationBlockchainID: _homeBlockchainID,
                 destinationAddress: _homeContractAddress,
@@ -137,6 +137,8 @@ abstract contract ERC721TokenRemote is
                 message: abi.encode(message)
             })
         );
+
+        emit RegisterWithHome(messageID, _homeBlockchainID, _homeContractAddress);
     }
 
     /**
@@ -404,6 +406,7 @@ abstract contract ERC721TokenRemote is
 
         if (!_isRegistered) {
             _isRegistered = true;
+            emit HomeChainRegistered(_homeBlockchainID, _homeContractAddress);
         }
 
         if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
