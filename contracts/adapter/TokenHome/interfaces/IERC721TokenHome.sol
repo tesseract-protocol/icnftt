@@ -45,7 +45,10 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @param expectedRemoteAddress The expected address of the remote contract
      */
-    function setExpectedRemoteContract(bytes32 remoteBlockchainID, address expectedRemoteAddress) external;
+    function setExpectedRemoteContract(
+        bytes32 remoteBlockchainID,
+        address expectedRemoteAddress
+    ) external;
 
     /**
      * @notice Returns the address of the existing ERC721 token contract being adapted

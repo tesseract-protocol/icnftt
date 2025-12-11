@@ -40,11 +40,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * This contract maintains registries of connected remote chains and tracks the current location
  * of tokens when they are transferred cross-chain, while working with existing ERC721 tokens.
  */
-abstract contract ERC721TokenHome is
-    IERC721TokenHome,
-    ERC721TokenTransferrer,
-    TeleporterRegistryOwnableApp
-{
+abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, TeleporterRegistryOwnableApp {
     /// @notice Mapping from blockchain ID to the contract address on that chain
     mapping(bytes32 remoteBlockchainID => address remoteContractAddress) internal _remoteContracts;
 
@@ -88,7 +84,10 @@ abstract contract ERC721TokenHome is
      * @param input Parameters for the cross-chain token transfer
      * @param tokenIds The IDs of the tokens to send
      */
-    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
+    function send(
+        SendTokenInput calldata input,
+        uint256[] calldata tokenIds
+    ) external override {
         require(tokenIds.length > 0, "ERC721TokenHome: empty token array");
         _send(input, tokenIds);
     }
@@ -100,7 +99,10 @@ abstract contract ERC721TokenHome is
      * @param input Parameters for the cross-chain token transfer and contract call
      * @param tokenIds The IDs of the tokens to send
      */
-    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+    function sendAndCall(
+        SendAndCallInput calldata input,
+        uint256[] calldata tokenIds
+    ) external override {
         require(tokenIds.length > 0, "ERC721TokenHome: empty token array");
         _sendAndCall(input, tokenIds);
     }
@@ -111,7 +113,10 @@ abstract contract ERC721TokenHome is
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @param expectedRemoteAddress The expected address of the remote contract
      */
-    function setExpectedRemoteContract(bytes32 remoteBlockchainID, address expectedRemoteAddress) external override {
+    function setExpectedRemoteContract(
+        bytes32 remoteBlockchainID,
+        address expectedRemoteAddress
+    ) external override {
         _checkTeleporterRegistryAppAccess();
         require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: invalid remote blockchain ID");
         require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot set same chain");
@@ -184,14 +189,19 @@ abstract contract ERC721TokenHome is
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @return The expected remote contract address
      */
-    function getExpectedRemoteContract(bytes32 remoteBlockchainID) external view returns (address) {
+    function getExpectedRemoteContract(
+        bytes32 remoteBlockchainID
+    ) external view returns (address) {
         return _expectedRemoteContracts[remoteBlockchainID];
     }
 
     /**
      * @dev See {ERC721TokenHome-send}
      */
-    function _send(SendTokenInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
+    function _send(
+        SendTokenInput calldata input,
+        uint256[] calldata tokenIds
+    ) internal nonReentrant {
         _validateSendTokenInput(input);
 
         bytes[] memory tokenMetadata =
@@ -221,7 +231,10 @@ abstract contract ERC721TokenHome is
     /**
      * @dev See {ERC721TokenHome-sendAndCall}
      */
-    function _sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
+    function _sendAndCall(
+        SendAndCallInput calldata input,
+        uint256[] calldata tokenIds
+    ) internal nonReentrant {
         _validateSendAndCallInput(input);
 
         bytes[] memory tokenMetadata =
@@ -285,7 +298,10 @@ abstract contract ERC721TokenHome is
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @param remoteNftTransferrerAddress The address of the contract on the remote chain
      */
-    function _registerRemote(bytes32 remoteBlockchainID, address remoteNftTransferrerAddress) internal {
+    function _registerRemote(
+        bytes32 remoteBlockchainID,
+        address remoteNftTransferrerAddress
+    ) internal {
         require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: invalid remote blockchain ID");
         require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot register remote on same chain");
         require(remoteNftTransferrerAddress != address(0), "ERC721TokenHome: invalid remote token transferrer address");
@@ -353,7 +369,10 @@ abstract contract ERC721TokenHome is
      * @param feeTokenAddress The address of the token used for fees
      * @param feeAmount The amount of the fee
      */
-    function _handleFees(address feeTokenAddress, uint256 feeAmount) internal {
+    function _handleFees(
+        address feeTokenAddress,
+        uint256 feeAmount
+    ) internal {
         if (feeAmount == 0) {
             return;
         }

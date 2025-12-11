@@ -145,14 +145,20 @@ interface IERC721Transferrer {
      * @param input The parameters defining the cross-chain transfer.
      * @param tokenIds The IDs of the tokens to send.
      */
-    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external;
+    function send(
+        SendTokenInput calldata input,
+        uint256[] calldata tokenIds
+    ) external;
 
     /**
      * @notice Sends a token to another chain and triggers a contract call on the destination chain.
      * @param input The parameters defining the cross-chain transfer and contract call.
      * @param tokenIds The IDs of the tokens to send.
      */
-    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external;
+    function sendAndCall(
+        SendAndCallInput calldata input,
+        uint256[] calldata tokenIds
+    ) external;
 
     /**
      * @notice Returns the blockchain ID that the transferrer is deployed on.

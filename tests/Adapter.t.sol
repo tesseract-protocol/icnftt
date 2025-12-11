@@ -16,11 +16,19 @@ import {IERC721SendAndCallReceiver} from "../contracts/adapter/interfaces/IERC72
 contract SimpleERC721 is ERC721URIStorage {
     string private _baseTokenURI;
 
-    constructor(string memory name, string memory symbol, string memory baseURI) ERC721(name, symbol) {
+    constructor(
+        string memory name,
+        string memory symbol,
+        string memory baseURI
+    ) ERC721(name, symbol) {
         _baseTokenURI = baseURI;
     }
 
-    function mint(address to, uint256 tokenId, string memory tokenURI_) external {
+    function mint(
+        address to,
+        uint256 tokenId,
+        string memory tokenURI_
+    ) external {
         _mint(to, tokenId);
         _setTokenURI(tokenId, tokenURI_);
     }
@@ -29,7 +37,10 @@ contract SimpleERC721 is ERC721URIStorage {
         return _baseTokenURI;
     }
 
-    function updateTokenURI(uint256 tokenId, string memory newURI) external {
+    function updateTokenURI(
+        uint256 tokenId,
+        string memory newURI
+    ) external {
         require(_ownerOf(tokenId) != address(0), "ERC721: URI update for nonexistent token");
         _setTokenURI(tokenId, newURI);
     }
@@ -83,7 +94,10 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorage {
         )
     {}
 
-    function _processTokenMetadata(uint256 tokenId, bytes memory metadata) internal override {
+    function _processTokenMetadata(
+        uint256 tokenId,
+        bytes memory metadata
+    ) internal override {
         if (metadata.length > 0) {
             string memory uri = abi.decode(metadata, (string));
             _setTokenURI(tokenId, uri);
@@ -162,8 +176,9 @@ contract MockERC721Receiver is IERC721SendAndCallReceiver {
         // Accept all tokens - MUST transfer them from the token contract that called us
         for (uint256 i = 0; i < tokenIds.length; i++) {
             try ERC721(tokenAddress).transferFrom(msg.sender, address(this), tokenIds[i]) {
-                // Transfer successful
-            } catch Error(string memory reason) {
+            // Transfer successful
+            }
+            catch Error(string memory reason) {
                 revert(string.concat("Transfer failed: ", reason));
             } catch {
                 revert("Transfer failed without reason");
@@ -178,7 +193,11 @@ contract HomeReentrancyContract {
     TokenRemote public remoteToken;
     bytes32 constant REMOTE_CHAIN_ID = bytes32(uint256(2));
 
-    constructor(ERC721TokenHomePublicMint _homeToken, TokenRemote _remoteToken, SimpleERC721 _homeNFT){
+    constructor(
+        ERC721TokenHomePublicMint _homeToken,
+        TokenRemote _remoteToken,
+        SimpleERC721 _homeNFT
+    ) {
         homeToken = _homeToken;
         remoteToken = _remoteToken;
         homeNFT = _homeNFT;
@@ -191,7 +210,7 @@ contract HomeReentrancyContract {
         address tokenAddress,
         uint256[] calldata tokenIds,
         bytes calldata payload
-    ) external{
+    ) external {
         console.log("HomeReentrancyContract: receiveTokens");
         homeNFT.transferFrom(msg.sender, address(this), 1);
 
@@ -203,14 +222,17 @@ contract HomeReentrancyContract {
 
         console.log("HomeReentrancyContract: sending token to remote chain");
 
-        homeToken.send(SendTokenInput({
-            destinationBlockchainID: REMOTE_CHAIN_ID,
-            destinationTokenTransferrerAddress: address(remoteToken),
-            recipient: address(this),
-            primaryFeeTokenAddress: address(0),
-            primaryFee: 0,
-            requiredGasLimit: 0
-        }), tokenIds);
+        homeToken.send(
+            SendTokenInput({
+                destinationBlockchainID: REMOTE_CHAIN_ID,
+                destinationTokenTransferrerAddress: address(remoteToken),
+                recipient: address(this),
+                primaryFeeTokenAddress: address(0),
+                primaryFee: 0,
+                requiredGasLimit: 0
+            }),
+            tokenIds
+        );
     }
 }
 
@@ -287,7 +309,10 @@ contract Adapter_Test is Test {
     }
 
     // Helper function to process teleporter messages
-    function processNextTeleporterMessage(bytes32 destinationChainID, address destinationAddress) internal {
+    function processNextTeleporterMessage(
+        bytes32 destinationChainID,
+        address destinationAddress
+    ) internal {
         require(teleporterMessenger.hasPendingMessages(destinationChainID, destinationAddress), "No pending messages");
         teleporterMessenger.deliverNextMessage(destinationChainID, destinationAddress);
     }
@@ -389,7 +414,7 @@ contract Adapter_Test is Test {
         vm.prank(owner);
         homeToken.setExpectedRemoteContract(REMOTE_CHAIN_ID, address(0));
         assertEq(homeToken.getExpectedRemoteContract(REMOTE_CHAIN_ID), address(0));
-        
+
         // Test non-owner cannot set expected contract
         vm.prank(user1);
         vm.expectRevert();
