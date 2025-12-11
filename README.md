@@ -1,13 +1,5 @@
 # Avalanche Interchain NFT Transfer
 
-## ⚠️ Experimental
-
-This project is in early development and is not yet ready for production use. The code and documentation are provided for experimental purposes only. Use at your own risk.
-
-- Expect breaking changes
-- This code has not undergone security audits
-- The implementation may contain bugs or vulnerabilities
-
 ## Background
 
 Avalanche Interchain Messaging (ICM) is a protocol that enables asynchronous cross-chain messaging between EVM L1s within Avalanche. Teleporter is a smart contract interface that implements ICM, providing features like replay protection, retry mechanisms, and relayer incentivization for cross-chain communication. 
