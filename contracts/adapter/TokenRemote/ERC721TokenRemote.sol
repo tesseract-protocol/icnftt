@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.30;
 
 import {IERC721TokenRemote} from "./interfaces/IERC721TokenRemote.sol";
 import {
@@ -94,7 +94,10 @@ abstract contract ERC721TokenRemote is
      * @param input Parameters for the cross-chain token transfer
      * @param tokenIds The IDs of the tokens to send
      */
-    function send(SendTokenInput calldata input, uint256[] calldata tokenIds) external override {
+    function send(
+        SendTokenInput calldata input,
+        uint256[] calldata tokenIds
+    ) external override {
         require(tokenIds.length > 0, "ERC721TokenRemote: empty token array");
         _send(input, tokenIds);
     }
@@ -105,7 +108,10 @@ abstract contract ERC721TokenRemote is
      * @param input Parameters for the cross-chain token transfer and contract call
      * @param tokenIds The IDs of the tokens to send
      */
-    function sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) external override {
+    function sendAndCall(
+        SendAndCallInput calldata input,
+        uint256[] calldata tokenIds
+    ) external override {
         require(tokenIds.length > 0, "ERC721TokenRemote: empty token array");
         _sendAndCall(input, tokenIds);
     }
@@ -169,7 +175,10 @@ abstract contract ERC721TokenRemote is
      * @param to The recipient address
      * @param tokenId The ID of the token being transferred
      */
-    function _beforeTokenTransfer(address to, uint256 tokenId) internal virtual {}
+    function _beforeTokenTransfer(
+        address to,
+        uint256 tokenId
+    ) internal virtual {}
 
     /**
      * @notice Hook that is called after token transfers
@@ -178,7 +187,11 @@ abstract contract ERC721TokenRemote is
      * @param to The recipient address
      * @param tokenId The ID of the token being transferred
      */
-    function _afterTokenTransfer(address from, address to, uint256 tokenId) internal virtual {}
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual {}
 
     /**
      * @notice Processes token metadata received from the home chain
@@ -186,7 +199,10 @@ abstract contract ERC721TokenRemote is
      * @param tokenId The ID of the token to update
      * @param metadata The metadata received from the home chain
      */
-    function _processTokenMetadata(uint256 tokenId, bytes memory metadata) internal virtual;
+    function _processTokenMetadata(
+        uint256 tokenId,
+        bytes memory metadata
+    ) internal virtual;
 
     /**
      * @notice Updates token ownership and calls lifecycle hooks
@@ -196,7 +212,11 @@ abstract contract ERC721TokenRemote is
      * @param auth The authorized address for the transfer
      * @return The previous owner address
      */
-    function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal virtual override returns (address) {
         _beforeTokenTransfer(to, tokenId);
         address from = super._update(to, tokenId, auth);
         _afterTokenTransfer(from, to, tokenId);
@@ -206,7 +226,10 @@ abstract contract ERC721TokenRemote is
     /**
      * @dev See {ERC721TokenRemote-send}
      */
-    function _send(SendTokenInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
+    function _send(
+        SendTokenInput calldata input,
+        uint256[] calldata tokenIds
+    ) internal nonReentrant {
         _validateSendTokenInput(input);
         _transferInAndBurn(tokenIds);
 
@@ -236,7 +259,10 @@ abstract contract ERC721TokenRemote is
     /**
      * @dev See {ERC721TokenRemote-sendAndCall}
      */
-    function _sendAndCall(SendAndCallInput calldata input, uint256[] calldata tokenIds) internal nonReentrant {
+    function _sendAndCall(
+        SendAndCallInput calldata input,
+        uint256[] calldata tokenIds
+    ) internal nonReentrant {
         _validateSendAndCallInput(input);
         _transferInAndBurn(tokenIds);
 
@@ -293,7 +319,10 @@ abstract contract ERC721TokenRemote is
      * @param message The send and call message containing the details of the operation
      * @param tokenIds The IDs of the tokens being transferred
      */
-    function _handleSendAndCall(SendAndCallMessage memory message, uint256[] memory tokenIds) internal {
+    function _handleSendAndCall(
+        SendAndCallMessage memory message,
+        uint256[] memory tokenIds
+    ) internal {
         bytes memory payload = abi.encodeCall(
             IERC721SendAndCallReceiver.receiveTokens,
             (
@@ -331,7 +360,11 @@ abstract contract ERC721TokenRemote is
      * @param recipient The address to mint the token to
      * @param metadata The token metadata sent from the home chain
      */
-    function _receiveToken(uint256 tokenId, address recipient, bytes memory metadata) internal {
+    function _receiveToken(
+        uint256 tokenId,
+        address recipient,
+        bytes memory metadata
+    ) internal {
         _mint(recipient, tokenId);
         _processTokenMetadata(tokenId, metadata);
         emit TokenMinted(tokenId, recipient);
@@ -343,7 +376,10 @@ abstract contract ERC721TokenRemote is
      * @param feeTokenAddress The address of the token used for fees
      * @param feeAmount The amount of the fee
      */
-    function _handleFees(address feeTokenAddress, uint256 feeAmount) internal {
+    function _handleFees(
+        address feeTokenAddress,
+        uint256 feeAmount
+    ) internal {
         if (feeAmount == 0) {
             return;
         }

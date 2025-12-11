@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.30;
 
 import {IERC721Transferrer} from "../../interfaces/IERC721Transferrer.sol";
 import {TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
@@ -47,14 +47,18 @@ interface IERC721TokenRemote is IERC721Transferrer {
      * @param destinationBlockchainID The blockchain ID of the destination chain
      * @param remote The address of the contract on the remote chain
      */
-    event RegisterWithHome(bytes32 indexed teleporterMessageID, bytes32 indexed destinationBlockchainID, address indexed remote);
+    event RegisterWithHome(
+        bytes32 indexed teleporterMessageID, bytes32 indexed destinationBlockchainID, address indexed remote
+    );
 
     /**
      * @notice Registers this contract with the home contract
      * @dev Sends a registration message to the home contract
      * @param feeInfo Information about the fee to pay for the cross-chain message
      */
-    function registerWithHome(TeleporterFeeInfo calldata feeInfo) external;
+    function registerWithHome(
+        TeleporterFeeInfo calldata feeInfo
+    ) external;
 
     /**
      * @notice Returns the blockchain ID of the home chain

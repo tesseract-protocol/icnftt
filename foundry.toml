@@ -1,11 +1,11 @@
 [profile.default]
-src = "contracts"
-out = "out"
-libs = ["lib"]
-solc = "0.8.25"
+src = 'contracts'
+out = 'out'
+libs = ['lib']
+solc_version = '0.8.30'
 evm_version = 'shanghai'
 test = 'tests'
-bytecode_hash = "none"
+bytecode_hash = 'none'
 optimizer = true
 optimizer_runs = 200
 via_ir = false
@@ -31,10 +31,10 @@ via_ir = false
 
 [profile.test]
 via_ir = false
-src = "test"
+src = 'test'
 
 [etherscan]
-avalanche = { key = "${SNOWTRACE_API_KEY}" }
-fuji = { key = "${SNOWTRACE_API_KEY}" }
+avalanche = { key = '${SNOWTRACE_API_KEY}' }
+fuji = { key = '${SNOWTRACE_API_KEY}' }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
