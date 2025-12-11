@@ -279,7 +279,6 @@ abstract contract ERC721TokenHome is
         }
     }
 
-
     /**
      * @notice Registers a remote contract on another chain
      * @dev Can only be called internally, triggered by receiving a register message from a remote chain
@@ -380,19 +379,19 @@ abstract contract ERC721TokenHome is
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
             SendTokenMessage memory sendTokenMessage = abi.decode(transferrerMessage.payload, (SendTokenMessage));
             for (uint256 i; i < sendTokenMessage.tokenIds.length; ++i) {
-                _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendTokenMessage.tokenIds[i]);
-                _tokenLocation[sendTokenMessage.tokenIds[i]] = bytes32(0);
-                emit TokenLocationUpdated(sendTokenMessage.tokenIds[i], bytes32(0));
-                IERC721(_token).safeTransferFrom(
-                    address(this), sendTokenMessage.recipient, sendTokenMessage.tokenIds[i]
-                );
+                uint256 tokenId = sendTokenMessage.tokenIds[i];
+                _validateReceiveToken(sourceBlockchainID, originSenderAddress, tokenId);
+                _tokenLocation[tokenId] = bytes32(0);
+                emit TokenLocationUpdated(tokenId, bytes32(0));
+                IERC721(_token).safeTransferFrom(address(this), sendTokenMessage.recipient, tokenId);
             }
         } else if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_CALL) {
             SendAndCallMessage memory sendAndCallMessage = abi.decode(transferrerMessage.payload, (SendAndCallMessage));
             for (uint256 i; i < sendAndCallMessage.tokenIds.length; ++i) {
-                _validateReceiveToken(sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenIds[i]);
-                _tokenLocation[sendAndCallMessage.tokenIds[i]] = bytes32(0);
-                emit TokenLocationUpdated(sendAndCallMessage.tokenIds[i], bytes32(0));
+                uint256 tokenId = sendAndCallMessage.tokenIds[i];
+                _validateReceiveToken(sourceBlockchainID, originSenderAddress, tokenId);
+                _tokenLocation[tokenId] = bytes32(0);
+                emit TokenLocationUpdated(tokenId, bytes32(0));
             }
             _handleSendAndCall(sendAndCallMessage, sourceBlockchainID, originSenderAddress, sendAndCallMessage.tokenIds);
         }
