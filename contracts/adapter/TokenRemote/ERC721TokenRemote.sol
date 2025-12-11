@@ -49,9 +49,11 @@ abstract contract ERC721TokenRemote is
     uint256 public constant REGISTER_REMOTE_REQUIRED_GAS = 130_000;
 
     /// @notice The blockchain ID of the home chain where the original tokens exist
-    bytes32 internal immutable _homeBlockchainID;
+    /// forge-lint: disable-next-item(screaming-snake-case-immutable)
+    bytes32 internal immutable _homeBlockchainId;
 
     /// @notice The address of the token contract on the home chain
+    /// forge-lint: disable-next-item(screaming-snake-case-immutable)
     address internal immutable _homeContractAddress;
 
     /// @notice Whether this contract has been registered with the home contract
@@ -61,7 +63,7 @@ abstract contract ERC721TokenRemote is
      * @notice Initializes the ERC721TokenRemote contract
      * @param name The name of the ERC721 token
      * @param symbol The symbol of the ERC721 token
-     * @param homeBlockchainID The blockchain ID of the home chain
+     * @param homeBlockchainId The blockchain ID of the home chain
      * @param homeContractAddress The address of the home contract
      * @param teleporterRegistryAddress The address of the Teleporter registry
      * @param teleporterManager The address of the Teleporter manager that will be responsible for managing cross-chain messages
@@ -70,7 +72,7 @@ abstract contract ERC721TokenRemote is
     constructor(
         string memory name,
         string memory symbol,
-        bytes32 homeBlockchainID,
+        bytes32 homeBlockchainId,
         address homeContractAddress,
         address teleporterRegistryAddress,
         address teleporterManager,
@@ -79,13 +81,13 @@ abstract contract ERC721TokenRemote is
         ERC721(name, symbol)
         TeleporterRegistryOwnableApp(teleporterRegistryAddress, teleporterManager, minTeleporterVersion)
     {
-        require(homeBlockchainID != bytes32(0), "ERC721TokenRemote: invalid home blockchain ID");
+        require(homeBlockchainId != bytes32(0), "ERC721TokenRemote: invalid home blockchain ID");
         require(homeContractAddress != address(0), "ERC721TokenRemote: invalid home contract address");
 
-        _homeBlockchainID = homeBlockchainID;
+        _homeBlockchainId = homeBlockchainId;
         _homeContractAddress = homeContractAddress;
 
-        emit ERC721TokenRemoteInitialized(_homeBlockchainID, _homeContractAddress);
+        emit ERC721TokenRemoteInitialized(_homeBlockchainId, _homeContractAddress);
     }
 
     /**
@@ -131,9 +133,9 @@ abstract contract ERC721TokenRemote is
 
         _handleFees(feeInfo.feeTokenAddress, feeInfo.amount);
 
-        bytes32 messageID = _sendTeleporterMessage(
+        bytes32 messageId = _sendTeleporterMessage(
             TeleporterMessageInput({
-                destinationBlockchainID: _homeBlockchainID,
+                destinationBlockchainID: _homeBlockchainId,
                 destinationAddress: _homeContractAddress,
                 feeInfo: feeInfo,
                 requiredGasLimit: REGISTER_REMOTE_REQUIRED_GAS,
@@ -142,15 +144,16 @@ abstract contract ERC721TokenRemote is
             })
         );
 
-        emit RegisterWithHome(messageID, _homeBlockchainID, _homeContractAddress);
+        emit RegisterWithHome(messageId, _homeBlockchainId, _homeContractAddress);
     }
 
     /**
      * @notice Returns the blockchain ID of the home chain
      * @return The home chain's blockchain ID
      */
+    /// forge-lint: disable-next-item(mixed-case-function)
     function getHomeBlockchainID() external view override returns (bytes32) {
-        return _homeBlockchainID;
+        return _homeBlockchainId;
     }
 
     /**
@@ -242,7 +245,7 @@ abstract contract ERC721TokenRemote is
 
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
 
-        bytes32 messageID = _sendTeleporterMessage(
+        bytes32 messageId = _sendTeleporterMessage(
             TeleporterMessageInput({
                 destinationBlockchainID: input.destinationBlockchainID,
                 destinationAddress: input.destinationTokenTransferrerAddress,
@@ -253,7 +256,7 @@ abstract contract ERC721TokenRemote is
             })
         );
 
-        emit TokensSent(messageID, _msgSender(), tokenIds);
+        emit TokensSent(messageId, _msgSender(), tokenIds);
     }
 
     /**
@@ -281,7 +284,7 @@ abstract contract ERC721TokenRemote is
 
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
 
-        bytes32 messageID = _sendTeleporterMessage(
+        bytes32 messageId = _sendTeleporterMessage(
             TeleporterMessageInput({
                 destinationBlockchainID: input.destinationBlockchainID,
                 destinationAddress: input.destinationTokenTransferrerAddress,
@@ -292,7 +295,7 @@ abstract contract ERC721TokenRemote is
             })
         );
 
-        emit TokensAndCallSent(messageID, _msgSender(), tokenIds);
+        emit TokensAndCallSent(messageId, _msgSender(), tokenIds);
     }
 
     /**
@@ -326,7 +329,7 @@ abstract contract ERC721TokenRemote is
         bytes memory payload = abi.encodeCall(
             IERC721SendAndCallReceiver.receiveTokens,
             (
-                _homeBlockchainID,
+                _homeBlockchainId,
                 _homeContractAddress,
                 message.originSenderAddress,
                 address(this),
@@ -393,19 +396,20 @@ abstract contract ERC721TokenRemote is
      * @param originSenderAddress The address of the sender on the source chain
      * @param message The encoded message
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function _receiveTeleporterMessage(
         bytes32 sourceBlockchainID,
         address originSenderAddress,
         bytes memory message
     ) internal virtual override {
-        require(sourceBlockchainID == _homeBlockchainID, "ERC721TokenRemote: invalid source blockchain");
+        require(sourceBlockchainID == _homeBlockchainId, "ERC721TokenRemote: invalid source blockchain");
         require(originSenderAddress == _homeContractAddress, "ERC721TokenRemote: invalid origin sender");
 
         TransferrerMessage memory transferrerMessage = abi.decode(message, (TransferrerMessage));
 
         if (!_isRegistered) {
             _isRegistered = true;
-            emit HomeChainRegistered(_homeBlockchainID, _homeContractAddress);
+            emit HomeChainRegistered(_homeBlockchainId, _homeContractAddress);
         }
 
         if (transferrerMessage.messageType == TransferrerMessageType.SINGLE_HOP_SEND) {
@@ -432,7 +436,7 @@ abstract contract ERC721TokenRemote is
     function _validateSendTokenInput(
         SendTokenInput memory input
     ) internal view {
-        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
+        require(input.destinationBlockchainID == _homeBlockchainId, "ERC721TokenRemote: can only send to home chain");
         require(
             input.destinationTokenTransferrerAddress == _homeContractAddress,
             "ERC721TokenRemote: can only send to home contract"
@@ -448,7 +452,7 @@ abstract contract ERC721TokenRemote is
     function _validateSendAndCallInput(
         SendAndCallInput memory input
     ) internal view {
-        require(input.destinationBlockchainID == _homeBlockchainID, "ERC721TokenRemote: can only send to home chain");
+        require(input.destinationBlockchainID == _homeBlockchainId, "ERC721TokenRemote: can only send to home chain");
         require(
             input.destinationTokenTransferrerAddress == _homeContractAddress,
             "ERC721TokenRemote: can only send to home contract"

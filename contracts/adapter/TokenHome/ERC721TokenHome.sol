@@ -18,12 +18,10 @@ import {
 import {ERC721TokenTransferrer} from "../ERC721TokenTransferrer.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
-import {IWarpMessenger} from "@subnet-evm-contracts/IWarpMessenger.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title ERC721TokenHome
@@ -51,6 +49,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
     bytes32[] internal _registeredChains;
 
     /// @notice The address of the ERC721 token contract on the home chain
+    /// forge-lint: disable-next-item(screaming-snake-case-immutable)
     address internal immutable _token;
 
     /// @notice Mapping from blockchain ID to the expected remote contract address
@@ -113,13 +112,14 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @param expectedRemoteAddress The expected address of the remote contract
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function setExpectedRemoteContract(
         bytes32 remoteBlockchainID,
         address expectedRemoteAddress
     ) external override {
         _checkTeleporterRegistryAppAccess();
         require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: invalid remote blockchain ID");
-        require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot set same chain");
+        require(remoteBlockchainID != _blockchainId, "ERC721TokenHome: cannot set same chain");
         require(_remoteContracts[remoteBlockchainID] == address(0), "ERC721TokenHome: chain already registered");
 
         _expectedRemoteContracts[remoteBlockchainID] = expectedRemoteAddress;
@@ -158,6 +158,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @return The address of the contract on the remote chain
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function getRemoteContract(
         bytes32 remoteBlockchainID
     ) external view override returns (address) {
@@ -189,6 +190,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @return The expected remote contract address
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function getExpectedRemoteContract(
         bytes32 remoteBlockchainID
     ) external view returns (address) {
@@ -214,7 +216,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
                 SendTokenMessage({recipient: input.recipient, tokenIds: tokenIds, tokenMetadata: tokenMetadata})
             )
         });
-        bytes32 messageID = _sendTeleporterMessage(
+        bytes32 messageId = _sendTeleporterMessage(
             TeleporterMessageInput({
                 destinationBlockchainID: input.destinationBlockchainID,
                 destinationAddress: input.destinationTokenTransferrerAddress,
@@ -225,7 +227,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             })
         );
 
-        emit TokensSent(messageID, _msgSender(), tokenIds);
+        emit TokensSent(messageId, _msgSender(), tokenIds);
     }
 
     /**
@@ -253,7 +255,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
         _handleFees(input.primaryFeeTokenAddress, input.primaryFee);
         TransferrerMessage memory transferrerMessage =
             TransferrerMessage({messageType: TransferrerMessageType.SINGLE_HOP_CALL, payload: abi.encode(message)});
-        bytes32 messageID = _sendTeleporterMessage(
+        bytes32 messageId = _sendTeleporterMessage(
             TeleporterMessageInput({
                 destinationBlockchainID: input.destinationBlockchainID,
                 destinationAddress: input.destinationTokenTransferrerAddress,
@@ -264,7 +266,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
             })
         );
 
-        emit TokensAndCallSent(messageID, _msgSender(), tokenIds);
+        emit TokensAndCallSent(messageId, _msgSender(), tokenIds);
     }
 
     /**
@@ -275,6 +277,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param destinationBlockchainID The blockchain ID of the destination chain
      * @return tokenMetadata The prepared metadata for each token
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function _transferIn(
         uint256[] memory tokenIds,
         TransferrerMessageType messageType,
@@ -298,12 +301,13 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @param remoteNftTransferrerAddress The address of the contract on the remote chain
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function _registerRemote(
         bytes32 remoteBlockchainID,
         address remoteNftTransferrerAddress
     ) internal {
         require(remoteBlockchainID != bytes32(0), "ERC721TokenHome: invalid remote blockchain ID");
-        require(remoteBlockchainID != _blockchainID, "ERC721TokenHome: cannot register remote on same chain");
+        require(remoteBlockchainID != _blockchainId, "ERC721TokenHome: cannot register remote on same chain");
         require(remoteNftTransferrerAddress != address(0), "ERC721TokenHome: invalid remote token transferrer address");
         require(_remoteContracts[remoteBlockchainID] == address(0), "ERC721TokenHome: remote already registered");
         require(
@@ -326,6 +330,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param originSenderAddress The address of the sender contract on the source chain
      * @param tokenIds The IDs of the tokens being transferred
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function _handleSendAndCall(
         SendAndCallMessage memory message,
         bytes32 sourceBlockchainID,
@@ -386,6 +391,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param originSenderAddress The address of the sender on the source chain
      * @param message The encoded message
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function _receiveTeleporterMessage(
         bytes32 sourceBlockchainID,
         address originSenderAddress,
@@ -434,6 +440,7 @@ abstract contract ERC721TokenHome is IERC721TokenHome, ERC721TokenTransferrer, T
      * @param originSenderAddress The address of the sender contract on the source chain
      * @param tokenId The ID of the token being received
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function _validateReceiveToken(
         bytes32 sourceBlockchainID,
         address originSenderAddress,

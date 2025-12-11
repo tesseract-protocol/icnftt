@@ -32,6 +32,7 @@ interface IERC721SendAndCallReceiver {
      * @param tokenIds The IDs of the tokens being sent
      * @param payload Additional data to be handled by the recipient contract
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function receiveTokens(
         bytes32 sourceBlockchainID,
         address originTokenTransferrerAddress,
