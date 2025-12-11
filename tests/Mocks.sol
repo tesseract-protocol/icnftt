@@ -7,7 +7,6 @@ import {
     TeleporterMessage,
     TeleporterMessageReceipt
 } from "@teleporter/ITeleporterMessenger.sol";
-import {TransferrerMessage, TransferrerMessageType} from "../contracts/standalone/interfaces/IERC721Transferrer.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 // Mock of IWarpMessenger to return chain IDs
@@ -99,7 +98,10 @@ contract MockTeleporterMessenger {
     mapping(bytes32 destinationChainID => mapping(address destinationAddress => PendingMessage[])) private
         _pendingMessages;
 
-    constructor(bytes32 homeChainID, bytes32 remoteChainID) {
+    constructor(
+        bytes32 homeChainID,
+        bytes32 remoteChainID
+    ) {
         HOME_CHAIN_ID = homeChainID;
         REMOTE_CHAIN_ID = remoteChainID;
     }
@@ -139,7 +141,10 @@ contract MockTeleporterMessenger {
     }
 
     // Deliver the next pending message (FIFO - first in, first out)
-    function deliverNextMessage(bytes32 destinationChainID, address destinationAddress) external returns (bool) {
+    function deliverNextMessage(
+        bytes32 destinationChainID,
+        address destinationAddress
+    ) external returns (bool) {
         PendingMessage[] storage messages = _pendingMessages[destinationChainID][destinationAddress];
         require(messages.length > 0, "No pending messages");
 
@@ -190,7 +195,10 @@ contract MockTeleporterMessenger {
     }
 
     // Deliver the latest pending message (LIFO - last in, first out)
-    function deliverLatestMessage(bytes32 destinationChainID, address destinationAddress) external returns (bool) {
+    function deliverLatestMessage(
+        bytes32 destinationChainID,
+        address destinationAddress
+    ) external returns (bool) {
         PendingMessage[] storage messages = _pendingMessages[destinationChainID][destinationAddress];
         require(messages.length > 0, "No pending messages");
 
@@ -238,16 +246,11 @@ contract MockTeleporterMessenger {
         return success;
     }
 
-    // Helper function to decode message type
-    function decodeMessage(
-        bytes memory message
-    ) external pure returns (TransferrerMessageType) {
-        TransferrerMessage memory transferrerMessage = abi.decode(message, (TransferrerMessage));
-        return transferrerMessage.messageType;
-    }
-
     // Check if there are pending messages
-    function hasPendingMessages(bytes32 destinationChainID, address destinationAddress) external view returns (bool) {
+    function hasPendingMessages(
+        bytes32 destinationChainID,
+        address destinationAddress
+    ) external view returns (bool) {
         return _pendingMessages[destinationChainID][destinationAddress].length > 0;
     }
 
