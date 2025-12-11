@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
 import {ERC721TokenHome} from "../contracts/adapter/TokenHome/ERC721TokenHome.sol";
 import {ERC721TokenRemote} from "../contracts/adapter/TokenRemote/ERC721TokenRemote.sol";
 import {TransferrerMessageType} from "../contracts/adapter/interfaces/IERC721Transferrer.sol";
@@ -14,8 +14,10 @@ import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/
 import {IERC721SendAndCallReceiver} from "../contracts/adapter/interfaces/IERC721SendAndCallReceiver.sol";
 
 contract SimpleERC721 is ERC721URIStorage {
+    /// forge-lint: disable-next-item(mixed-case-variable)
     string private _baseTokenURI;
 
+    /// forge-lint: disable-next-item(mixed-case-variable)
     constructor(
         string memory name,
         string memory symbol,
@@ -24,6 +26,7 @@ contract SimpleERC721 is ERC721URIStorage {
         _baseTokenURI = baseURI;
     }
 
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function mint(
         address to,
         uint256 tokenId,
@@ -33,10 +36,13 @@ contract SimpleERC721 is ERC721URIStorage {
         _setTokenURI(tokenId, tokenURI_);
     }
 
+    /// forge-lint: disable-next-item(mixed-case-function)
     function _baseURI() internal view override returns (string memory) {
         return _baseTokenURI;
     }
 
+    /// forge-lint: disable-next-item(mixed-case-function)
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function updateTokenURI(
         uint256 tokenId,
         string memory newURI
@@ -45,6 +51,8 @@ contract SimpleERC721 is ERC721URIStorage {
         _setTokenURI(tokenId, newURI);
     }
 
+    /// forge-lint: disable-next-item(mixed-case-function)
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function setBaseURI(
         string memory newBaseURI
     ) external {
@@ -124,6 +132,7 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorage {
         return super._update(to, tokenId, auth);
     }
 
+    /// forge-lint: disable-next-item(mixed-case-function)
     function _baseURI() internal pure override returns (string memory) {
         return "";
     }
@@ -132,7 +141,7 @@ contract TokenRemote is ERC721TokenRemote, ERC721URIStorage {
 contract MockERC721Receiver is IERC721SendAndCallReceiver {
     // Records of received tokens
     struct ReceivedToken {
-        bytes32 sourceBlockchainID;
+        bytes32 sourceBlockchainId;
         address originTokenTransferrerAddress;
         address originSenderAddress;
         address tokenAddress;
@@ -150,7 +159,7 @@ contract MockERC721Receiver is IERC721SendAndCallReceiver {
     bytes public lastPayload;
 
     function receiveTokens(
-        bytes32 sourceBlockchainID,
+        bytes32 sourceBlockchainId,
         address originTokenTransferrerAddress,
         address originSenderAddress,
         address tokenAddress,
@@ -159,7 +168,7 @@ contract MockERC721Receiver is IERC721SendAndCallReceiver {
     ) external override {
         // Record token details first
         lastReceivedToken = ReceivedToken({
-            sourceBlockchainID: sourceBlockchainID,
+            sourceBlockchainId: sourceBlockchainId,
             originTokenTransferrerAddress: originTokenTransferrerAddress,
             originSenderAddress: originSenderAddress,
             tokenAddress: tokenAddress,
@@ -189,36 +198,36 @@ contract MockERC721Receiver is IERC721SendAndCallReceiver {
 
 contract HomeReentrancyContract {
     ERC721TokenHomePublicMint public homeToken;
-    SimpleERC721 public homeNFT;
+    SimpleERC721 public homeNft;
     TokenRemote public remoteToken;
     bytes32 constant REMOTE_CHAIN_ID = bytes32(uint256(2));
 
     constructor(
         ERC721TokenHomePublicMint _homeToken,
         TokenRemote _remoteToken,
-        SimpleERC721 _homeNFT
+        SimpleERC721 _homeNft
     ) {
         homeToken = _homeToken;
         remoteToken = _remoteToken;
-        homeNFT = _homeNFT;
+        homeNft = _homeNft;
     }
 
     function receiveTokens(
-        bytes32 sourceBlockchainID,
-        address originTokenTransferrerAddress,
-        address originSenderAddress,
-        address tokenAddress,
+        bytes32,
+        address,
+        address,
+        address,
         uint256[] calldata tokenIds,
-        bytes calldata payload
+        bytes calldata
     ) external {
         console.log("HomeReentrancyContract: receiveTokens");
-        homeNFT.transferFrom(msg.sender, address(this), 1);
+        homeNft.transferFrom(msg.sender, address(this), 1);
 
         uint256[] memory tokenIds_ = new uint256[](1);
 
         tokenIds_[0] = 1;
 
-        homeNFT.approve(address(homeToken), 1);
+        homeNft.approve(address(homeToken), 1);
 
         console.log("HomeReentrancyContract: sending token to remote chain");
 
@@ -238,7 +247,7 @@ contract HomeReentrancyContract {
 
 contract Adapter_Test is Test {
     // Contracts under test
-    SimpleERC721 public homeNFT;
+    SimpleERC721 public homeNft;
     ERC721TokenHomePublicMint public homeToken;
     TokenRemote public remoteToken;
 
@@ -275,11 +284,11 @@ contract Adapter_Test is Test {
 
         // Setup home NFT contract first
         vm.startPrank(owner);
-        homeNFT = new SimpleERC721("HomeNFT", "HNFT", "https://home.nft/");
+        homeNft = new SimpleERC721("homeNft", "HNFT", "https://home.nft/");
 
         // Then setup home token contract that wraps the NFT
         homeToken = new ERC721TokenHomePublicMint(
-            address(homeNFT),
+            address(homeNft),
             address(teleporterRegistry),
             owner,
             1 // minTeleporterVersion
@@ -308,6 +317,7 @@ contract Adapter_Test is Test {
         remoteReceiver = new MockERC721Receiver();
     }
 
+    /// forge-lint: disable-next-item(mixed-case-variable)
     // Helper function to process teleporter messages
     function processNextTeleporterMessage(
         bytes32 destinationChainID,
@@ -428,11 +438,11 @@ contract Adapter_Test is Test {
 
         // User1 mints a token directly on the NFT contract
         vm.prank(user1);
-        homeNFT.mint(user1, 1, "token1.json");
+        homeNft.mint(user1, 1, "token1.json");
 
         // User sends token to remote chain through the wrapper
         vm.startPrank(user1);
-        homeNFT.approve(address(homeToken), 1); // Approve the wrapper to transfer the token
+        homeNft.approve(address(homeToken), 1); // Approve the wrapper to transfer the token
         uint256[] memory tokenIds = new uint256[](1);
         tokenIds[0] = 1;
         homeToken.send(
@@ -449,7 +459,7 @@ contract Adapter_Test is Test {
         vm.stopPrank();
 
         // Check token is now owned by the home contract instead of being locked
-        assertEq(homeNFT.ownerOf(1), address(homeToken));
+        assertEq(homeNft.ownerOf(1), address(homeToken));
 
         // Verify message was sent from home to remote
         assertTrue(teleporterMessenger.hasPendingMessages(REMOTE_CHAIN_ID, address(remoteToken)));
@@ -468,11 +478,11 @@ contract Adapter_Test is Test {
 
         // User1 mints a token directly on the NFT contract
         vm.prank(user1);
-        homeNFT.mint(user1, 1, "token1.json");
+        homeNft.mint(user1, 1, "token1.json");
 
         // User sends token to remote chain through the wrapper
         vm.startPrank(user1);
-        homeNFT.approve(address(homeToken), 1); // Approve the wrapper to transfer the token
+        homeNft.approve(address(homeToken), 1); // Approve the wrapper to transfer the token
         uint256[] memory tokenIds = new uint256[](1);
         tokenIds[0] = 1;
         homeToken.send(
@@ -516,7 +526,7 @@ contract Adapter_Test is Test {
         processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
 
         // Verify token is transferred back to user1 (instead of being unlocked)
-        assertEq(homeNFT.ownerOf(1), user1);
+        assertEq(homeNft.ownerOf(1), user1);
     }
 
     // Test that token URI is preserved when sending to remote
@@ -525,15 +535,15 @@ contract Adapter_Test is Test {
 
         // User1 mints a token with a custom URI
         vm.prank(user1);
-        homeNFT.mint(user1, 1, "special-token.json");
+        homeNft.mint(user1, 1, "special-token.json");
 
         // Verify initial URI on home
         string memory initialHomeURI = string.concat("https://home.nft/", "special-token.json");
-        assertEq(homeNFT.tokenURI(1), initialHomeURI);
+        assertEq(homeNft.tokenURI(1), initialHomeURI);
 
         // Send token to remote
         vm.startPrank(user1);
-        homeNFT.approve(address(homeToken), 1); // Approve the wrapper to transfer the token
+        homeNft.approve(address(homeToken), 1); // Approve the wrapper to transfer the token
         uint256[] memory tokenIds = new uint256[](1);
         tokenIds[0] = 1;
         homeToken.send(
@@ -573,26 +583,26 @@ contract Adapter_Test is Test {
         processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
 
         // Verify the token URI is still preserved after round trip
-        assertEq(homeNFT.tokenURI(1), initialHomeURI);
+        assertEq(homeNft.tokenURI(1), initialHomeURI);
     }
 
     // Test updating a token's URI
     function testUpdateTokenURI() public {
         // User1 mints a token directly on the NFT contract
         vm.prank(user1);
-        homeNFT.mint(user1, 1, "token1.json");
+        homeNft.mint(user1, 1, "token1.json");
 
         // Initial URI should combine baseURI and token URI
         string memory initialURI = string.concat("https://home.nft/", "token1.json");
-        assertEq(homeNFT.tokenURI(1), initialURI);
+        assertEq(homeNft.tokenURI(1), initialURI);
 
         // Owner updates the token URI directly on the NFT contract
         vm.prank(owner);
-        homeNFT.updateTokenURI(1, "updated-token1.json");
+        homeNft.updateTokenURI(1, "updated-token1.json");
 
         // Verify the token URI was updated
         string memory updatedURI = string.concat("https://home.nft/", "updated-token1.json");
-        assertEq(homeNFT.tokenURI(1), updatedURI);
+        assertEq(homeNft.tokenURI(1), updatedURI);
     }
 
     function testTransferMultipleTokens() public {
@@ -600,14 +610,14 @@ contract Adapter_Test is Test {
 
         // User1 mints multiple tokens
         vm.startPrank(user1);
-        homeNFT.mint(user1, 1, "token1.json");
-        homeNFT.mint(user1, 2, "token2.json");
-        homeNFT.mint(user1, 3, "token3.json");
+        homeNft.mint(user1, 1, "token1.json");
+        homeNft.mint(user1, 2, "token2.json");
+        homeNft.mint(user1, 3, "token3.json");
 
         // Approve all tokens
-        homeNFT.approve(address(homeToken), 1);
-        homeNFT.approve(address(homeToken), 2);
-        homeNFT.approve(address(homeToken), 3);
+        homeNft.approve(address(homeToken), 1);
+        homeNft.approve(address(homeToken), 2);
+        homeNft.approve(address(homeToken), 3);
 
         // Create array of token IDs
         uint256[] memory tokenIds = new uint256[](3);
@@ -630,9 +640,9 @@ contract Adapter_Test is Test {
         vm.stopPrank();
 
         // Check all tokens are now owned by the home contract
-        assertEq(homeNFT.ownerOf(1), address(homeToken));
-        assertEq(homeNFT.ownerOf(2), address(homeToken));
-        assertEq(homeNFT.ownerOf(3), address(homeToken));
+        assertEq(homeNft.ownerOf(1), address(homeToken));
+        assertEq(homeNft.ownerOf(2), address(homeToken));
+        assertEq(homeNft.ownerOf(3), address(homeToken));
 
         // Process the message at remote
         processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
@@ -668,9 +678,9 @@ contract Adapter_Test is Test {
         processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
 
         // Verify all tokens are transferred to user2
-        assertEq(homeNFT.ownerOf(1), user2);
-        assertEq(homeNFT.ownerOf(2), user2);
-        assertEq(homeNFT.ownerOf(3), user2);
+        assertEq(homeNft.ownerOf(1), user2);
+        assertEq(homeNft.ownerOf(2), user2);
+        assertEq(homeNft.ownerOf(3), user2);
     }
 
     function testSendAndCall() public {
@@ -678,12 +688,12 @@ contract Adapter_Test is Test {
 
         // User1 mints tokens
         vm.startPrank(user1);
-        homeNFT.mint(user1, 1, "token1.json");
-        homeNFT.mint(user1, 2, "token2.json");
+        homeNft.mint(user1, 1, "token1.json");
+        homeNft.mint(user1, 2, "token2.json");
 
         // Approve tokens
-        homeNFT.approve(address(homeToken), 1);
-        homeNFT.approve(address(homeToken), 2);
+        homeNft.approve(address(homeToken), 1);
+        homeNft.approve(address(homeToken), 2);
 
         // Create array of token IDs
         uint256[] memory tokenIds = new uint256[](2);
@@ -709,8 +719,8 @@ contract Adapter_Test is Test {
         vm.stopPrank();
 
         // Check tokens are owned by home contract
-        assertEq(homeNFT.ownerOf(1), address(homeToken), "Token 1 not owned by home contract");
-        assertEq(homeNFT.ownerOf(2), address(homeToken), "Token 2 not owned by home contract");
+        assertEq(homeNft.ownerOf(1), address(homeToken), "Token 1 not owned by home contract");
+        assertEq(homeNft.ownerOf(2), address(homeToken), "Token 2 not owned by home contract");
 
         // Process the message at remote
         processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
@@ -740,8 +750,8 @@ contract Adapter_Test is Test {
         processNextTeleporterMessage(HOME_CHAIN_ID, address(homeToken));
 
         // Verify tokens are owned by the home receiver contract
-        assertEq(homeNFT.ownerOf(1), address(homeReceiver));
-        assertEq(homeNFT.ownerOf(2), address(homeReceiver));
+        assertEq(homeNft.ownerOf(1), address(homeReceiver));
+        assertEq(homeNft.ownerOf(2), address(homeReceiver));
     }
 
     function testSendAndCallReentrancy() public {
@@ -749,12 +759,12 @@ contract Adapter_Test is Test {
 
         // User1 mints tokens
         vm.startPrank(user1);
-        homeNFT.mint(user1, 1, "token1.json");
+        homeNft.mint(user1, 1, "token1.json");
 
         // Approve tokens
-        homeNFT.approve(address(homeToken), 1);
+        homeNft.approve(address(homeToken), 1);
 
-        assertEq(homeNFT.ownerOf(1), user1);
+        assertEq(homeNft.ownerOf(1), user1);
         vm.expectRevert();
         remoteToken.ownerOf(1);
 
@@ -762,7 +772,7 @@ contract Adapter_Test is Test {
         uint256[] memory tokenIds = new uint256[](1);
         tokenIds[0] = 1;
 
-        HomeReentrancyContract homeReentrancyContract = new HomeReentrancyContract(homeToken, remoteToken, homeNFT);
+        HomeReentrancyContract homeReentrancyContract = new HomeReentrancyContract(homeToken, remoteToken, homeNft);
 
         // Send tokens with contract call
         bytes memory receiverPayload = abi.encode("test data");
@@ -783,7 +793,7 @@ contract Adapter_Test is Test {
         vm.stopPrank();
 
         // Check tokens are owned by home contract
-        assertEq(homeNFT.ownerOf(1), address(homeToken), "Token 1 not owned by home contract");
+        assertEq(homeNft.ownerOf(1), address(homeToken), "Token 1 not owned by home contract");
 
         // Process the message at remote
         processNextTeleporterMessage(REMOTE_CHAIN_ID, address(remoteToken));
@@ -815,7 +825,7 @@ contract Adapter_Test is Test {
         }
 
         // Verify tokens are owned by the home receiver contract
-        assertEq(homeNFT.ownerOf(1), address(homeReentrancyContract));
+        assertEq(homeNft.ownerOf(1), address(homeReentrancyContract));
 
         // Check remote token state - should be burned
         vm.expectRevert();

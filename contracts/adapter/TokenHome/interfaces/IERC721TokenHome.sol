@@ -23,6 +23,7 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param blockchainID The blockchain ID of the registered remote chain
      * @param remote The address of the contract on the remote chain
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     event RemoteChainRegistered(bytes32 indexed blockchainID, address indexed remote);
 
     /**
@@ -30,6 +31,7 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param blockchainID The blockchain ID of the remote chain
      * @param expectedRemote The expected address of the remote contract (address(0) if being removed)
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     event RemoteChainExpectedContractSet(bytes32 indexed blockchainID, address indexed expectedRemote);
 
     /**
@@ -37,6 +39,7 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param tokenId The ID of the token
      * @param destinationBlockchainID The blockchain ID of the destination chain
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     event TokenLocationUpdated(uint256 indexed tokenId, bytes32 indexed destinationBlockchainID);
 
     /**
@@ -45,6 +48,7 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @param expectedRemoteAddress The expected address of the remote contract
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function setExpectedRemoteContract(
         bytes32 remoteBlockchainID,
         address expectedRemoteAddress
@@ -82,6 +86,7 @@ interface IERC721TokenHome is IERC721Transferrer {
      * @param remoteBlockchainID The blockchain ID of the remote chain
      * @return The address of the contract on the remote chain
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     function getRemoteContract(
         bytes32 remoteBlockchainID
     ) external view returns (address);

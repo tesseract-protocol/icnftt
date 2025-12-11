@@ -19,6 +19,7 @@ pragma solidity 0.8.30;
  * @param primaryFee The amount of fee tokens to pay for the Teleporter message.
  * @param requiredGasLimit The gas limit required for executing the message on the destination chain.
  */
+/// forge-lint: disable-next-item(mixed-case-variable)
 struct SendTokenInput {
     bytes32 destinationBlockchainID;
     address destinationTokenTransferrerAddress;
@@ -42,6 +43,7 @@ struct SendTokenInput {
  * @param primaryFee The amount of fee tokens to pay for the Teleporter message.
  * @param requiredGasLimit The total gas limit required for executing the message on the destination chain.
  */
+/// forge-lint: disable-next-item(mixed-case-variable)
 struct SendAndCallInput {
     bytes32 destinationBlockchainID;
     address destinationTokenTransferrerAddress;
@@ -111,6 +113,7 @@ struct TransferrerMessage {
  * @param sender The address of the sender initiating the transfer
  * @param tokenIds Array of token IDs being transferred
  */
+/// forge-lint: disable-next-item(mixed-case-variable)
 event TokensSent(bytes32 indexed teleporterMessageID, address indexed sender, uint256[] tokenIds);
 
 /**
@@ -119,6 +122,7 @@ event TokensSent(bytes32 indexed teleporterMessageID, address indexed sender, ui
  * @param sender The address of the sender initiating the transfer
  * @param tokenIds Array of token IDs being transferred
  */
+/// forge-lint: disable-next-item(mixed-case-variable)
 event TokensAndCallSent(bytes32 indexed teleporterMessageID, address indexed sender, uint256[] tokenIds);
 
 /**
@@ -164,5 +168,6 @@ interface IERC721Transferrer {
      * @notice Returns the blockchain ID that the transferrer is deployed on.
      * @return The blockchain ID.
      */
+    /// forge-lint: disable-next-item(mixed-case-function)
     function getBlockchainID() external view returns (bytes32);
 }

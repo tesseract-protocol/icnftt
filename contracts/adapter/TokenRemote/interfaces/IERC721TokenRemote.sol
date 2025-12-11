@@ -18,6 +18,7 @@ interface IERC721TokenRemote is IERC721Transferrer {
      * @param homeBlockchainID The blockchain ID of the home chain
      * @param homeContractAddress The address of the home contract
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     event ERC721TokenRemoteInitialized(bytes32 indexed homeBlockchainID, address indexed homeContractAddress);
 
     /**
@@ -47,6 +48,7 @@ interface IERC721TokenRemote is IERC721Transferrer {
      * @param destinationBlockchainID The blockchain ID of the destination chain
      * @param remote The address of the contract on the remote chain
      */
+    /// forge-lint: disable-next-item(mixed-case-variable)
     event RegisterWithHome(
         bytes32 indexed teleporterMessageID, bytes32 indexed destinationBlockchainID, address indexed remote
     );
@@ -64,6 +66,7 @@ interface IERC721TokenRemote is IERC721Transferrer {
      * @notice Returns the blockchain ID of the home chain
      * @return The home chain's blockchain ID
      */
+    /// forge-lint: disable-next-item(mixed-case-function)
     function getHomeBlockchainID() external view returns (bytes32);
 
     /**

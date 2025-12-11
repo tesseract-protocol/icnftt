@@ -7,20 +7,20 @@ import {
     TeleporterMessage,
     TeleporterMessageReceipt
 } from "@teleporter/ITeleporterMessenger.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 // Mock of IWarpMessenger to return chain IDs
 contract MockWarpMessenger {
-    bytes32 private _blockchainID;
+    bytes32 private _blockchainId;
 
     constructor(
-        bytes32 blockchainID
+        bytes32 blockchainId
     ) {
-        _blockchainID = blockchainID;
+        _blockchainId = blockchainId;
     }
 
+    /// forge-lint: disable-next-item(mixed-case-function)
     function getBlockchainID() external view returns (bytes32) {
-        return _blockchainID;
+        return _blockchainId;
     }
 }
 
@@ -65,16 +65,17 @@ contract MockTeleporterRegistry {
 // Mock Teleporter to simulate cross-chain message passing
 contract MockTeleporterMessenger {
     // Events defined in ITeleporterMessenger
+    /// forge-lint: disable-next-item(mixed-case-variable)
     event SendCrossChainMessage(
-        bytes32 indexed messageID,
+        bytes32 indexed messageId,
         bytes32 indexed destinationBlockchainID,
         TeleporterMessage message,
         TeleporterFeeInfo feeInfo
     );
 
     event ReceiveCrossChainMessage(
-        bytes32 indexed messageID,
-        bytes32 indexed sourceBlockchainID,
+        bytes32 indexed messageId,
+        bytes32 indexed sourceBlockchainId,
         address indexed deliverer,
         address rewardRedeemer,
         TeleporterMessage message
@@ -95,15 +96,15 @@ contract MockTeleporterMessenger {
     uint256 private _messageNonce;
 
     // Simple queue of pending messages by destination
-    mapping(bytes32 destinationChainID => mapping(address destinationAddress => PendingMessage[])) private
+    mapping(bytes32 destinationChainId => mapping(address destinationAddress => PendingMessage[])) private
         _pendingMessages;
 
     constructor(
-        bytes32 homeChainID,
-        bytes32 remoteChainID
+        bytes32 homeChainId,
+        bytes32 remoteChainId
     ) {
-        HOME_CHAIN_ID = homeChainID;
-        REMOTE_CHAIN_ID = remoteChainID;
+        HOME_CHAIN_ID = homeChainId;
+        REMOTE_CHAIN_ID = remoteChainId;
     }
 
     // Send a cross-chain message
@@ -111,7 +112,7 @@ contract MockTeleporterMessenger {
         TeleporterMessageInput calldata messageInput
     ) external returns (bytes32) {
         // Generate a message ID based on current nonce
-        bytes32 messageID =
+        bytes32 messageId =
             keccak256(abi.encodePacked(_messageNonce, HOME_CHAIN_ID, messageInput.destinationBlockchainID));
 
         // Create the TeleporterMessage
@@ -135,17 +136,17 @@ contract MockTeleporterMessenger {
         _messageNonce++;
 
         // Emit event for tracking
-        emit SendCrossChainMessage(messageID, messageInput.destinationBlockchainID, message, messageInput.feeInfo);
+        emit SendCrossChainMessage(messageId, messageInput.destinationBlockchainID, message, messageInput.feeInfo);
 
-        return messageID;
+        return messageId;
     }
 
     // Deliver the next pending message (FIFO - first in, first out)
     function deliverNextMessage(
-        bytes32 destinationChainID,
+        bytes32 destinationChainId,
         address destinationAddress
     ) external returns (bool) {
-        PendingMessage[] storage messages = _pendingMessages[destinationChainID][destinationAddress];
+        PendingMessage[] storage messages = _pendingMessages[destinationChainId][destinationAddress];
         require(messages.length > 0, "No pending messages");
 
         // Get the oldest message
@@ -158,16 +159,16 @@ contract MockTeleporterMessenger {
         messages.pop();
 
         // Determine source chain based on message direction
-        bytes32 sourceChainID = (destinationChainID == HOME_CHAIN_ID) ? REMOTE_CHAIN_ID : HOME_CHAIN_ID;
+        bytes32 sourceChainId = (destinationChainId == HOME_CHAIN_ID) ? REMOTE_CHAIN_ID : HOME_CHAIN_ID;
 
         // Create message ID for the event
-        bytes32 messageID = keccak256(abi.encodePacked(pendingMsg.nonce, sourceChainID, destinationChainID));
+        bytes32 messageId = keccak256(abi.encodePacked(pendingMsg.nonce, sourceChainId, destinationChainId));
 
         // Create TeleporterMessage for the event
         TeleporterMessage memory teleporterMessage = TeleporterMessage({
             messageNonce: pendingMsg.nonce,
             originSenderAddress: pendingMsg.sender,
-            destinationBlockchainID: destinationChainID,
+            destinationBlockchainID: destinationChainId,
             destinationAddress: destinationAddress,
             requiredGasLimit: 200000, // Default value
             allowedRelayerAddresses: new address[](0),
@@ -177,8 +178,8 @@ contract MockTeleporterMessenger {
 
         // Emit receive event
         emit ReceiveCrossChainMessage(
-            messageID,
-            sourceChainID,
+            messageId,
+            sourceChainId,
             msg.sender, // deliverer
             msg.sender, // reward redeemer
             teleporterMessage
@@ -187,7 +188,7 @@ contract MockTeleporterMessenger {
         // Call the destination contract
         (bool success,) = destinationAddress.call(
             abi.encodeWithSignature(
-                "receiveTeleporterMessage(bytes32,address,bytes)", sourceChainID, pendingMsg.sender, pendingMsg.message
+                "receiveTeleporterMessage(bytes32,address,bytes)", sourceChainId, pendingMsg.sender, pendingMsg.message
             )
         );
 
@@ -196,10 +197,10 @@ contract MockTeleporterMessenger {
 
     // Deliver the latest pending message (LIFO - last in, first out)
     function deliverLatestMessage(
-        bytes32 destinationChainID,
+        bytes32 destinationChainId,
         address destinationAddress
     ) external returns (bool) {
-        PendingMessage[] storage messages = _pendingMessages[destinationChainID][destinationAddress];
+        PendingMessage[] storage messages = _pendingMessages[destinationChainId][destinationAddress];
         require(messages.length > 0, "No pending messages");
 
         // Get the newest message (last in queue)
@@ -210,16 +211,16 @@ contract MockTeleporterMessenger {
         messages.pop();
 
         // Determine source chain based on message direction
-        bytes32 sourceChainID = (destinationChainID == HOME_CHAIN_ID) ? REMOTE_CHAIN_ID : HOME_CHAIN_ID;
+        bytes32 sourceChainId = (destinationChainId == HOME_CHAIN_ID) ? REMOTE_CHAIN_ID : HOME_CHAIN_ID;
 
         // Create message ID for the event
-        bytes32 messageID = keccak256(abi.encodePacked(pendingMsg.nonce, sourceChainID, destinationChainID));
+        bytes32 messageId = keccak256(abi.encodePacked(pendingMsg.nonce, sourceChainId, destinationChainId));
 
         // Create TeleporterMessage for the event
         TeleporterMessage memory teleporterMessage = TeleporterMessage({
             messageNonce: pendingMsg.nonce,
             originSenderAddress: pendingMsg.sender,
-            destinationBlockchainID: destinationChainID,
+            destinationBlockchainID: destinationChainId,
             destinationAddress: destinationAddress,
             requiredGasLimit: 200000, // Default value
             allowedRelayerAddresses: new address[](0),
@@ -229,8 +230,8 @@ contract MockTeleporterMessenger {
 
         // Emit receive event
         emit ReceiveCrossChainMessage(
-            messageID,
-            sourceChainID,
+            messageId,
+            sourceChainId,
             msg.sender, // deliverer
             msg.sender, // reward redeemer
             teleporterMessage
@@ -239,26 +240,28 @@ contract MockTeleporterMessenger {
         // Call the destination contract
         (bool success,) = destinationAddress.call(
             abi.encodeWithSignature(
-                "receiveTeleporterMessage(bytes32,address,bytes)", sourceChainID, pendingMsg.sender, pendingMsg.message
+                "receiveTeleporterMessage(bytes32,address,bytes)", sourceChainId, pendingMsg.sender, pendingMsg.message
             )
         );
 
         return success;
     }
 
+    /// forge-lint: disable-start(mixed-case-variable)
     // Check if there are pending messages
     function hasPendingMessages(
-        bytes32 destinationChainID,
+        bytes32 destinationChainId,
         address destinationAddress
     ) external view returns (bool) {
-        return _pendingMessages[destinationChainID][destinationAddress].length > 0;
+        return _pendingMessages[destinationChainId][destinationAddress].length > 0;
     }
 
     // Get count of pending messages
     function getPendingMessageCount(
-        bytes32 destinationChainID,
+        bytes32 destinationChainId,
         address destinationAddress
     ) external view returns (uint256) {
-        return _pendingMessages[destinationChainID][destinationAddress].length;
+        return _pendingMessages[destinationChainId][destinationAddress].length;
     }
+    /// forge-lint: disable-end(mixed-case-variable)
 }
