@@ -1,3 +1,0 @@
-[submodule "lib/icm-contracts"]
-	path = lib/icm-contracts
-	url = https://github.com/ava-labs/icm-contracts
