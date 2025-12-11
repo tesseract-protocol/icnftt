@@ -1,0 +1,4 @@
+[submodule "lib/icm-services"]
+	path = lib/icm-services
+	url = https://github.com/ava-labs/icm-services
+	branch = main

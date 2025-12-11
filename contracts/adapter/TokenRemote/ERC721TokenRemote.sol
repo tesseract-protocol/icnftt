@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.30;
 
 import {IERC721TokenRemote} from "./interfaces/IERC721TokenRemote.sol";
 import {

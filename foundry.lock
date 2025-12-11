@@ -1,1 +1,8 @@
-{}
+{
+  "lib/icm-services": {
+    "branch": {
+      "name": "main",
+      "rev": "31514b643a180c5e27340d5f9ed3b53cd5583bc2"
+    }
+  }
+}

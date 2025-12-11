@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.30;
 
 import {IERC721TokenHome} from "./interfaces/IERC721TokenHome.sol";
 import {IERC721SendAndCallReceiver} from "../interfaces/IERC721SendAndCallReceiver.sol";
@@ -18,7 +18,7 @@ import {
 import {ERC721TokenTransferrer} from "../ERC721TokenTransferrer.sol";
 import {TeleporterRegistryOwnableApp} from "@teleporter/registry/TeleporterRegistryOwnableApp.sol";
 import {TeleporterMessageInput, TeleporterFeeInfo} from "@teleporter/ITeleporterMessenger.sol";
-import {IWarpMessenger} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
+import {IWarpMessenger} from "@subnet-evm-contracts/IWarpMessenger.sol";
 import {CallUtils} from "@utilities/CallUtils.sol";
 import {SafeERC20TransferFrom} from "@utilities/SafeERC20TransferFrom.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
